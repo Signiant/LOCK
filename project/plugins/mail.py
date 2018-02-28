@@ -8,7 +8,7 @@ from bs4 import BeautifulSoup
 
 path = os.path.dirname(__file__)
 
-def emailOutput(email, configMap, username):
+def mail_message(configMap, username, data, **key_args):
 
     # Get the SMTP config
     smtp_server = configMap['Global']['smtp']['server']
@@ -20,14 +20,13 @@ def emailOutput(email, configMap, username):
     smtp_from = configMap['Global']['smtp']['from_addr']
     smtp_cc = configMap['Global']['smtp']['cc_addrs']
     email_template_file = configMap['Global']['smtp']['template']
-
-    email_to_addr = email
-    email_subject = "AWS key rotation"
     for userdata in configMap['Users']:
-         if username == (next(iter(userdata))):
-             user_data = userdata.get(username)
+        if username == (next(iter(userdata))):
+            user_data = userdata.get(username)
 
-    content_title = user_data['mail']['mail_message']
+    email_to_addr = key_args.get('mail_address')
+    email_subject = "AWS key rotation"
+    content_title = key_args.get('mail_message').replace("<name>", username)
 
     values = {}
 

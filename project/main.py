@@ -3,13 +3,13 @@ import logging
 import os
 import sys
 import yaml
-from project import plugin
-from project.mail import emailOutput
+from project import values
+import project.plugin as plugins
+from project.plugins.iam import validate_new_key
 
-from project.plugins.iam import get_client, get_access_keys, delete_inactive_key, create_key, get_iam_client, \
-    validate_new_key, create_and_test_key
-from project.plugins.parameterstore import insert_parameter
-from project.plugins.ssh import write_key_to_yaml, run_command, SSH_server,write_new_key
+
+def update_access_key(newValue):
+    values.access_key=newValue
 
 
 def readConfigFile(path):
@@ -27,63 +27,42 @@ def main():
     logging.basicConfig(filename='info.log', level=logging.INFO)
 
     sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-    parser = argparse.ArgumentParser(description='External user provisioning tool')
+    parser = argparse.ArgumentParser(description='LOCK Let\'s Occasionaly Circulate Keys ')
     parser.add_argument('-u', '--user', help='aws user to rotate', required=False)
     parser.add_argument('-c', '--config', help='Full path to a config file', required=True)
-    parser.add_argument('-v', '--validation', help='validation mode', required=False)
-    parser.add_argument('-k', '--keys', help='show key instead', required=False)
-
-
+    parser.add_argument('-m', '--mode', help='Select the mode to run: keys, rotate, validate', required=True)
+    #modes: list keys, rotate, validate, inactivate old key anyway?
     args = parser.parse_args()
     configMap = readConfigFile(args.config)
 
-
-    username='test_lock'
-
-    # create_and_test_key(configMap, username)
-    # validate_new_key(configMap, username)
-    # user_test_lock(configMap, username)
-    insert_parameter(('aaaa', 'xxxxx'), username, configMap)
-
-
-    #plugin_handle = plugin.loadPlugin(username)
-    #plugin_handle.list_keys(configMap, username)
-
-    print("")
-
-
-def user_test_lock(configMap, username):
+    username='test_lock' #args.user, aws user
+    args.mode = 'keys'   # run mode
 
     for userdata in configMap['Users']:
         if username == (next(iter(userdata))):
             user_data = userdata.get(username)
 
-    #new_key=rotate_aws_user_key(configMap, username)
+    if args.mode == 'keys':
+        plugins.list_keys(configMap, username)
+    elif args.mode == 'rotate':
+        modules = user_data['methods'] #list?
+        data = None
+        #keys = list(modules.keys())
+        for module in modules: # modules = dict, module = str
+            key_args = module[list(module.keys())[0]] #get key pair of method to run
+            if key_args == None:
+                  key_args = {}
+            method_to_call = getattr(plugins, list(module.keys())[0]) # get method name to run
+            returned_data = method_to_call(configMap, username, data, **key_args) # need extra for params, data = data returned from previous method
+            #if returned f
+    elif args.mode == 'validate':  #validate that new key is being used and delete the old unused key
+        print(validate_new_key(configMap, username))
 
-    #bulk of code, write key id + secret to file
-    #write_new_key(user_data, new_key)
 
-    #save the key where its safe + retrievable
-    insert_parameter(('aaaa','xxxxx'),username,configMap)
+    #create_and_test_key(configMap, username)
 
-def rotate_aws_user_key(configMap, username):
+    print("")
 
-
-    #setup connection
-    client=get_iam_client( configMap)
-
-    #get existing keys
-    oldkeys=get_access_keys( client, username)
-
-    #delete inactive keys
-    print(delete_inactive_key( client, oldkeys, username))
-
-    ##DELETE OLDEST USED KEY
-
-    #create a new key
-    new_key=create_key(client, username)
-    print('new key: '+str(new_key))
-    return new_key
 
 if __name__ == "__main__":
     main()

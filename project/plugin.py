@@ -1,6 +1,7 @@
 import ast
 import imp,os
 
+from project.plugins import iam, mail, pingdom, ssh
 from project.plugins.iam import get_iam_client, get_access_keys, key_last_used
 
 pluginFolder = "../project/plugins"
@@ -20,6 +21,26 @@ def getAllPlugins():
 
 def loadPlugin(pluginName):
     return imp.load_source(pluginName, os.path.join(pluginFolder, pluginName, mainFile + ".py"))
+
+def get_new_key(configMap, username, data, **kwargs):
+    return iam.get_new_key(configMap, username, data, **kwargs)
+
+def store_key_parameter_store( configMap, username, new_key ):
+    iam.store_key_parameter_store(configMap, username, new_key)
+
+def mail_message(configMap, username, data, **key_args):
+    mail.mail_message(configMap, username, data,**key_args)
+def pingdom_pause_check(configMap, username, data, **key_args):
+    pingdom.pingdom_pause_check(configMap, username, data, **key_args)
+
+def pingdom_unpause_check(configMap, username, data, **key_args):
+    pingdom.pingdom_unpause_check(configMap, username, data, **key_args)
+
+def dummy(configMap, username, data, **key_args):
+    print (dummy)
+
+def write_new_key(configMap, username, data, **key_args):
+    ssh.write_new_key(configMap, username, data, **key_args)
 
 def list_keys(configMap,username):
     client=get_iam_client(configMap)
