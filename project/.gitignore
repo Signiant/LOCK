@@ -1,14 +1,18 @@
 config/config.yaml
 *.yaml
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
 *$py.class
 .idea/workspace.xml
 *.xml
+.idea/
+
 # C extensions
 *.so
-.idea/
+
+
 # Distribution / packaging
 .Python
 env/
