@@ -59,6 +59,10 @@ def write_new_key(configMap, username, data, **key_args): #https://stackoverflow
     #     if "command" in command:
     #         command_strings.append(key_args.get(command).replace("<new_key_name>", values.access_key[0]).replace("<new_key_secret>", values.access_key[1]))
 
+    list_of_commands=[ command.replace("<new_key_name>", values.access_key[0]).replace("<new_key_secret>", values.access_key[1]) for command in list_of_commands]
+
+    #  PASS A NONE OR KEYFILENAME
+
     response = SSH_server(hostname=key_args.get('hostname'), password=key_args.get('password'),  username=key_args.get('user'), port=key_args.get('port'),commands=list_of_commands)
     # GET COMMAND FROM YAML
     # STR.replace(<new_key_name>, new key)

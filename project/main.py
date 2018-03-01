@@ -1,4 +1,5 @@
 import argparse
+import importlib
 import logging
 import os
 import sys
@@ -36,7 +37,7 @@ def main():
     configMap = readConfigFile(args.config)
 
     username='test_lock' #args.user, aws user
-    args.mode = 'keys'   # run mode
+    args.mode = 'rotate'   # run mode
 
     for userdata in configMap['Users']:
         if username == (next(iter(userdata))):
@@ -45,19 +46,22 @@ def main():
     if args.mode == 'keys':
         plugins.list_keys(configMap, username)
     elif args.mode == 'rotate':
-        modules = user_data['methods'] #list?
+        modules = user_data['plugins'] #list?
         data = None
-        #keys = list(modules.keys())
-        for module in modules: # modules = dict, module = str
-            key_args = module[list(module.keys())[0]] #get key pair of method to run
-            if key_args == None:
-                  key_args = {}
-            method_to_call = getattr(plugins, list(module.keys())[0]) # get method name to run
-            returned_data = method_to_call(configMap, username, data, **key_args) # need extra for params, data = data returned from previous method
-            #if returned f
+        for plugin in modules:
+            my_plugin= importlib.import_module('project.plugins.'+list(plugin.keys())[0])
+            plugin=plugin.get(list(plugin.keys())[0])
+            for method in plugin: # modules = dict, module = str
+                key_args = method[list(method.keys())[0]] #get key pair of method to run
+                if key_args == None:
+                      key_args = {}
+                method_to_call = getattr(my_plugin, list(method.keys())[0]) # get method name to run
+                returned_data = method_to_call(configMap, username, data, **key_args) # need extra for params, data = data returned from previous method
     elif args.mode == 'validate':  #validate that new key is being used and delete the old unused key
         print(validate_new_key(configMap, username))
 
+    elif args.mode == 'getkeys':  #validate that new key is being used and delete the old unused key
+        print(validate_new_key(configMap, username))
 
     #create_and_test_key(configMap, username)
 
