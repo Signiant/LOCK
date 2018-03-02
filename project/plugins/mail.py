@@ -8,7 +8,7 @@ from bs4 import BeautifulSoup
 
 path = os.path.dirname(__file__)
 
-def mail_message(configMap, username, data, **key_args):
+def mail_message(configMap, username,  **key_args):
 
     # Get the SMTP config
     smtp_server = configMap['Global']['smtp']['server']
@@ -37,7 +37,7 @@ def mail_message(configMap, username, data, **key_args):
 
     msg = MailMessage(from_email=smtp_from, to_emails=[email_to_addr], cc_emails=smtp_cc,subject=email_subject,template=template)
     send(mail_msg=msg, mail_server=server)
-    print("email sent")
+    print("Notification email sent to "+key_args.get('mail_address'))
 
 
 class MailServer(object):

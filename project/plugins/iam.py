@@ -1,6 +1,6 @@
 import boto3
 
-
+from project import values
 
 
 def get_iam_client(configMap):
@@ -8,7 +8,6 @@ def get_iam_client(configMap):
                           aws_access_key_id=configMap['Global']['id'],
                           aws_secret_access_key=configMap['Global']['secret']
                           )
-
 
 #RUN AS DEBUG
 def create_and_test_key(configMap,username):
@@ -34,9 +33,6 @@ def create_and_test_key(configMap,username):
         AccessKeyId=keyid
     )
     print(response)
-
-def get_client(configMap,name): #name!=Global
-    return boto3.client('iam', aws_access_key_id=configMap['Global']['id'], aws_secret_access_key=configMap['Global']['secret'])
 
 def get_access_keys(client,username): #list of dictionary key metadata
     response = client.list_access_keys(UserName=username)
@@ -65,29 +61,29 @@ def key_last_used(client, keyId):
         AccessKeyId=keyId
     )
 
-def get_new_key(configMap, username, data, **kwargs):
-    from project.main import update_access_key
-    # setup connection
-    client = get_iam_client(configMap)
+def get_new_key(configMap, username,  **kwargs):
+    if values.access_key==("",""): #run only if user hasnt manually entered a key
+        from project.main import update_access_key
+        # setup connection
+        client = get_iam_client(configMap)
 
-    # get existing keys
-    oldkeys = get_access_keys(client, username)
+        # get existing keys
+        oldkeys = get_access_keys(client, username)
 
-    # delete 'inactive' keys and keys that have never been used (if any)
-    print(delete_inactive_key(client, oldkeys, username))
+        # delete 'inactive' keys and keys that have never been used (if any)
+        delete_inactive_key(client, oldkeys, username)
 
-    # create a new key
-    new_key = create_key(client, username)
-    print('new key: ' + str(new_key))
-    update_access_key(new_key)
-    return new_key
+        # create a new key
+        new_key = create_key(client, username)
+        print('New AccessKey: ' + str(new_key))
+        update_access_key(new_key)
+        return new_key
 
     #validate that new key is being used and delete the old unused key otherwise do nothing and advise the user
-def validate_new_key(configMap,username,data):
+def validate_new_key(configMap,username):
 
     client=get_iam_client(configMap)
     keys=get_access_keys(client, username)
-    print(keys)
 
     lastUsed=[]
     for key in keys:
@@ -114,20 +110,29 @@ def validate_new_key(configMap,username,data):
 #add/overwrite
 #http://boto3.readthedocs.io/en/latest/reference/services/ssm.html#SSM.Client.put_parameter
 
-def store_key_parameter_store( configMap, username, new_key ):
+def store_key_parameter_store(  configMap, username,  **key_args ):
+
     client= boto3.client('ssm', aws_access_key_id=configMap['Global']['id'], aws_secret_access_key=configMap['Global']['secret'])
-    response = client.get_parameter(
-        Name=username,
-        WithDecryption= True
-    )
+
+    response = client.get_parameter(Name=username,WithDecryption= True)
+
     response = client.put_parameter(
         Name=username,
         Description='modified by LOCK', #config desc
-        Value='Key Id: '+ str(new_key[0])+' Secret Key: '+str(new_key[1]),  # Key ID: XXXXXX Secret Key: XXXX
+        Value='Key Id: '+ values.access_key[0]+' Secret Key: '+values.access_key[1],  # Key ID: XXXXXX Secret Key: XXXX
         Type='SecureString',
         Overwrite=True
     )
-    print('Key written to parameter store.')
-    print(response)
 
+    print('Key written to parameter store.')
+
+def list_keys(configMap,username):
+    client=get_iam_client(configMap)
+    keys=get_access_keys(client, username)
+    for key in keys:
+        response=(key_last_used(client,key.get('AccessKeyId')))
+        key["Last Used"] =response.get('AccessKeyLastUsed').get('LastUsedDate')
+        print('')
+        for i in key:
+            print (i, ':',key[i])
 

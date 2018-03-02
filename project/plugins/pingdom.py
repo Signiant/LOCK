@@ -1,7 +1,7 @@
 import requests
 
 
-def pingdom_pause_check(configMap, username, data, **key_args):
+def pause_check(configMap, username,  **key_args):
 
     PINGDOM_ACCOUNT_EMAIL = configMap['Global']['pingdom']['account_email']
     API_KEY = configMap['Global']['pingdom']['api_key']
@@ -14,7 +14,8 @@ def pingdom_pause_check(configMap, username, data, **key_args):
         resp = requests.put(url,  headers={'Account-Email': PINGDOM_ACCOUNT_EMAIL, 'App-Key': API_KEY}, auth=(PINGDOM_USER, PINGDOM_PSWD))
 
 
-def pingdom_unpause_check(configMap, username, data, **key_args):
+def unpause_check(configMap, username,  **key_args):
+
     PINGDOM_ACCOUNT_EMAIL = configMap['Global']['pingdom']['account_email']
     API_KEY = configMap['Global']['pingdom']['api_key']
     PINGDOM_USER = configMap['Global']['pingdom']['username']
