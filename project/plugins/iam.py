@@ -4,34 +4,24 @@ from project import values
 
 
 def get_iam_client(configMap):
-    return boto3.client('iam',
-                          aws_access_key_id=configMap['Global']['id'],
-                          aws_secret_access_key=configMap['Global']['secret']
-                          )
+    return boto3.client('iam', aws_access_key_id=configMap['Global']['id'],
+                               aws_secret_access_key=configMap['Global']['secret'])
 
-#RUN AS DEBUG
+#TO TEST A KEY
 def create_and_test_key(configMap,username):
     client=get_iam_client(configMap)
-    response = client.create_access_key(
-        UserName=username
-    )
+    response = client.create_access_key(UserName=username)
 
     keyid=response.get('AccessKey').get('AccessKeyId')
     import time
     time.sleep(5)
 
-    client2 =boto3.client('iam',
-                          aws_access_key_id=response.get('AccessKey').get('AccessKeyId'),
-                          aws_secret_access_key=response.get('AccessKey').get('SecretAccessKey')
-                          )
+    client2 =boto3.client('iam', aws_access_key_id=response.get('AccessKey').get('AccessKeyId'),
+                                aws_secret_access_key=response.get('AccessKey').get('SecretAccessKey'))
 
-    response = client2.list_access_keys(
-        UserName=username
-    )
+    response = client2.list_access_keys(UserName=username)
     print(response)
-    response=client.get_access_key_last_used(
-        AccessKeyId=keyid
-    )
+    response=client.get_access_key_last_used(AccessKeyId=keyid)
     print(response)
 
 def get_access_keys(client,username): #list of dictionary key metadata
@@ -64,6 +54,7 @@ def key_last_used(client, keyId):
 def get_new_key(configMap, username,  **kwargs):
     if values.access_key==("",""): #run only if user hasnt manually entered a key
         from project.main import update_access_key
+
         # setup connection
         client = get_iam_client(configMap)
 
@@ -107,9 +98,6 @@ def validate_new_key(configMap,username):
             delete_old_key(client, username, keys[0].get('AccessKeyId'))
         return ('Old key was deleted.')
 
-#add/overwrite
-#http://boto3.readthedocs.io/en/latest/reference/services/ssm.html#SSM.Client.put_parameter
-
 def store_key_parameter_store(  configMap, username,  **key_args ):
 
     client= boto3.client('ssm', aws_access_key_id=configMap['Global']['id'], aws_secret_access_key=configMap['Global']['secret'])
@@ -126,6 +114,12 @@ def store_key_parameter_store(  configMap, username,  **key_args ):
 
     print('Key written to parameter store.')
 
+def delete_iam_user(configMap, username,  **key_args):
+    client=get_iam_client(configMap)
+    response = client.delete_user(
+        UserName=username
+    )
+
 def list_keys(configMap,username):
     client=get_iam_client(configMap)
     keys=get_access_keys(client, username)
@@ -136,3 +130,49 @@ def list_keys(configMap,username):
         for i in key:
             print (i, ':',key[i])
 
+def rotate_ses_smtp_user(configMap, username,  **key_args):
+
+    delete_iam_user(configMap, username, **key_args)
+    client=get_iam_client(configMap)
+    client.create_user(UserName=username)
+
+    response = client.attach_user_policy(
+        UserName=username,
+        PolicyArn=key_args.get('policy_arn')
+    )
+    key=create_key(client, username)
+    print(key)
+
+    password=hash_smtp_pass_from_secret_key(key[1])
+
+    store_password_parameter_store(configMap, username , key=key[0],password=password)
+
+
+#https://gist.github.com/w3iBStime/a26bd670bf7f98675674
+def hash_smtp_pass_from_secret_key(secretkey):
+    import base64
+    import hmac
+    import hashlib
+
+    # replace with the secret key to be hashed
+    message = "SendRawEmail"
+    sig_bytes = bytearray(b'\x02')  # init with version
+
+    theHmac = hmac.new(secretkey.encode("ASCII"), message.encode("ASCII"), hashlib.sha256)
+    the_hmac_hexdigest = theHmac.hexdigest()
+    sig_bytes.extend(bytearray.fromhex(the_hmac_hexdigest))
+    return (base64.b64encode(sig_bytes))
+
+def store_password_parameter_store(  configMap, username,  **key_args ):
+
+    client= boto3.client('ssm', aws_access_key_id=configMap['Global']['id'], aws_secret_access_key=configMap['Global']['secret'])
+
+    response = client.get_parameter(Name=username,WithDecryption= True)
+    #NOTE that this is the username/password, the secret key is NOT a regular secret key, and the username is the accesskey
+    response = client.put_parameter(
+        Name=username,
+        Description='modified by LOCK',
+        Value='Username: '+ key_args.get('key')+' Password: '+key_args.get('password'),
+        Type='SecureString',
+        Overwrite=True
+    )
