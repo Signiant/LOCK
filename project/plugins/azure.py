@@ -1,104 +1,68 @@
-from azure.keyvault import KeyVaultClient, KeyVaultId
-from azure.common.credentials import UserPassCredentials
+import logging
+from azure.keyvault import KeyVaultClient
+from azure.mgmt.resource import ResourceManagementClient
+from msrestazure.azure_active_directory import  UserPassCredentials
+from project.plugins.ssh import ssh_server_command
 
 
-from azure.mgmt.network import NetworkManagementClient, NetworkManagementClientConfiguration
+def rotate_autoscalers_cloud(configMap, username,  **key_args):
 
-from azure.mgmt.compute import ComputeManagementClient
-from msrestazure.azure_active_directory import ServicePrincipalCredentials
-
-
-def do_stuff(configMap, username,  **key_args):
-    key_vault_uri = key_args.get('vault_uri')
-    username = key_args.get('user')
-    password = key_args.get('password')
-
+    username = key_args.get('azure_admin')
+    password = key_args.get('azure_admin_pw')
     subscription_id = key_args.get('subscription_id')
-
     credentials = UserPassCredentials(username, password)
-
-
-    from azure.mgmt.resource import ResourceManagementClient
-#    client = ResourceManagementClient(credentials, subscription_id)
-    #client.resource_groups.create(RESOURCE_GROUP_NAME, {'location':'eastus'})
-
-    #ServicePrincipalCredentials
-    # for item in client.resource_groups.list_resources('devops'):
-    #     print(item)
-
-    ############## ROTATE KEY IN KEY VAULT
-    # for item in client.resource_groups.list():
-    #     print(item)
-    #
-
-    #
-    # credentials = UserPassCredentials(username, password, resource='https://vault.azure.net')
-    # client = KeyVaultClient(credentials)
-    #
-    # secret_bundle = client.set_secret(key_vault_uri, 'FirstSecret', 'Hush you, that is secret!!')
-    # secret_id = KeyVaultId.parse_secret_id(secret_bundle.id)
-    # print(secret_id)
-
-    credentials = ServicePrincipalCredentials(
-        client_id='',  # name of created app
-        secret='',  # secret of app
-        tenant=''  # id ot signant add
-    )
-    #list resource groups in a subs
     client = ResourceManagementClient(credentials, subscription_id)
-    # for item in client.resource_groups.list():
-    #     print(item)
+    to_rotate = []
 
-    ####list resource within a resource group
-    # for item in client.resources.list_by_resource_group(''):
-    #     print(item)
-    # print('')
+    for group in key_args.get('resource_group'):
 
-    credentials = UserPassCredentials(username, password)
+        region = key_args.get('resource_group').get(group)
+        region_strings = region.split('-')
+        print(region_strings)
+        ressource_groups = client.resources.list_by_resource_group(group)
 
-    network_client = NetworkManagementClient(
+        for item in ressource_groups:
+            # print(item)
+            if item.type == 'Microsoft.Compute/virtualMachines':
+                if any(x in item.name for x in region_strings):
+                    print(item.name)
+                    to_rotate.append(item.name)
 
-            credentials,
-            subscription_id
-
-    )
-    #https://stackoverflow.com/questions/37265885/is-there-any-python-api-which-can-get-the-ip-address-internal-or-external-of-v
-    # GROUP_NAME = '--Group-'
-    # VM_NAME = ''
-    # PUBLIC_IP_NAME = VM_NAME
-    # ip_address = network_client.public_ip_addresses
-    # public_ip_address = network_client.public_ip_addresses.get(GROUP_NAME, PUBLIC_IP_NAME)
-    # print(public_ip_address.ip_address)
-    # print(public_ip_address.ip_configuration.private_ip_address)
-    #
-
-
-
-# Unfortunate and convoluted way of obtaining public IP of selected instance
-    # List istances
-    compute_client = ComputeManagementClient(
-        credentials,
-        subscription_id
-    )
-    instance_list = compute_client.virtual_machines.list_all()
-    for i, instance in enumerate(instance_list):
-        print((instance.name))
-
-#https://github.com/Azure/azure-sdk-for-python/issues/897
-    ni_reference = instance.network_profile.network_interfaces[0]
-    ni_reference = ni_reference.id.split('/')
-    ni_group = ni_reference[4]
-    ni_name = ni_reference[8]
-
-    net_interface = network_client.network_interfaces.get(ni_group, ni_name)
-    ip_reference = net_interface.ip_configurations[0].public_ip_address
-    ip_reference = ip_reference.id.split('/')
-    ip_group = ip_reference[4]
-    ip_name = ip_reference[8]
-
-    public_ip = network_client.public_ip_addresses.get(ip_group, ip_name)
-    public_ip = public_ip.ip_address
-    print (public_ip)
-    # use ip to rotate
+        print(to_rotate)
+        for vm in to_rotate:
+            if 'autoscaler' in vm:
+                key_args['hostname'] = key_args.get('autoscaler_host').replace('<SERVER>', vm).replace('<REGION>', region.replace('-', ''))
+                print(key_args['hostname'])
+                for pkey in key_args.get('pkeys'):
+                    if region.replace('-','') in pkey:
+                        key_args['pkey'] = pkey
+                key_args['commands'] = key_args['commands_autoscaler']
+                key_args['markers'] = key_args['autoscaler_markers']
+                #print(key_args)
+                ssh_server_command(configMap, username, **key_args)
+                logging.critical("Access key and Secret key written to "+ vm)
+            else:  # its a flight server
+                key_args['hostname'] = key_args.get('flight_host').replace('<SERVER>', vm).replace('<REGION>', region.replace('-', ''))
+                print(key_args['hostname'])
+                for pkey in key_args.get('pkeys'):
+                    if region.replace('-', '') in pkey:
+                        key_args['pkey'] = pkey
+                key_args['commands'] = key_args['commands_flight']
+                key_args['markers'] = key_args['flight_markers']
+                #print(key_args)
+                ssh_server_command(configMap, username, **key_args)
+                logging.critical("Access key and Secret key written to " + vm)
 
 
+def set_key_vault(configMap, username,  **key_args):
+
+    username = key_args.get('azure_admin')
+    password = key_args.get('azure_admin_pw')
+    key_vault_uri = key_args.get('vault_uri')
+    credentials = UserPassCredentials(username, password, resource='https://vault.azure.net')
+    client = KeyVaultClient(credentials)
+
+    from project import values
+    client.set_secret(key_vault_uri, key_args.get('key_name'),  values.access_key[0])
+    client.set_secret(key_vault_uri, key_args.get('key_secret'), values.access_key[1])
+    logging.critical("Access key and Secret key written to key vault")

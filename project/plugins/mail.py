@@ -2,11 +2,11 @@ import smtplib
 import os
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
-import lxml
 from bs4 import BeautifulSoup
 
 
 path = os.path.dirname(__file__)
+
 
 def mail_message(configMap, username,  **key_args):
 
@@ -14,17 +14,17 @@ def mail_message(configMap, username,  **key_args):
     smtp_server = configMap['Global']['smtp']['server']
     smtp_tls = configMap['Global']['smtp']['tls']
     smtp_port = configMap['Global']['smtp']['port']
-
     smtp_user = configMap['Global']['smtp']['user']
     smtp_pass = configMap['Global']['smtp']['password']
     smtp_from = configMap['Global']['smtp']['from_addr']
     smtp_cc = configMap['Global']['smtp']['cc_addrs']
     email_template_file = configMap['Global']['smtp']['template']
+
     for userdata in configMap['Users']:
         if username == (next(iter(userdata))):
             user_data = userdata.get(username)
 
-    email_to_addr = key_args.get('mail_address')
+    email_to_addr = key_args.get('mail_to')
     email_subject = "AWS key rotation"
     content_title = key_args.get('mail_message').replace("<name>", username)
 
@@ -37,7 +37,7 @@ def mail_message(configMap, username,  **key_args):
 
     msg = MailMessage(from_email=smtp_from, to_emails=[email_to_addr], cc_emails=smtp_cc,subject=email_subject,template=template)
     send(mail_msg=msg, mail_server=server)
-    print("Notification email sent to "+key_args.get('mail_address'))
+    print("Notification email sent to " + key_args.get('mail_to'))
 
 
 class MailServer(object):
@@ -70,8 +70,8 @@ class EmailTemplate():
         html.find("div",{"id":'title'}).append(self.content_title)
         count=1
 
-
         return str(html)
+
 
 # author Dave North
 class MailMessage(object):
@@ -113,6 +113,7 @@ class MailMessage(object):
         else:
                 msg.attach(MIMEText(self.body, 'plain'))
         return msg
+
 
 def send(mail_msg, mail_server=MailServer()):
     server = smtplib.SMTP(mail_server.server_name, mail_server.port)

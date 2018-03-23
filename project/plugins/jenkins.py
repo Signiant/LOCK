@@ -4,8 +4,9 @@ from jenkinsapi.utils.crumb_requester import CrumbRequester
 from project import values
 
 
-def update_credential(configMap, username,  **key_args): #https://github.com/pycontribs/jenkinsapi/blob/master/examples/how_to/create_credentials.py
-    if  values.access_key==("",""):
+# https://github.com/pycontribs/jenkinsapi/blob/master/examples/how_to/create_credentials.py
+def update_credential(configMap, username,  **key_args):
+    if values.access_key == ("", ""):
         print('no key set, skipping method update_credential')
     else:
         jenkins_url = key_args.get('url')
