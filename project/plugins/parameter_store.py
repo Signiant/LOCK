@@ -11,6 +11,7 @@ import os
 import boto3, botocore
 
 from project import values
+from project.plugins.iam import get_ssm_client
 
 
 def _log_and_print_to_console(msg, log_level='info'):
@@ -34,8 +35,8 @@ def set_param_in_region(configMap,region, parameter, value, value_is_file=False,
         sys.exit(1)
 
     return_value = None
-    ssm = boto3.client('ssm', aws_access_key_id=configMap['Global']['id'],
-                          aws_secret_access_key=configMap['Global']['secret'], region_name=region)
+
+    ssm = get_ssm_client(configMap)
 
     if encrypt:
         type = "SecureString"
@@ -45,33 +46,35 @@ def set_param_in_region(configMap,region, parameter, value, value_is_file=False,
     if value_is_file and not os.path.exists(value):
         _log_and_print_to_console("ERROR: File Value provided, but file does not exist", 'error')
         sys.exit(1)
-
-    if description:
-        if key:
-            result = ssm.put_parameter(Name=parameter,
-                                       Description=description,
-                                       Value=value,
-                                       Type=type,
-                                       KeyId=key,
-                                       Overwrite=True)
-        else:
-            result = ssm.put_parameter(Name=parameter,
-                                       Description=description,
-                                       Value=value,
-                                       Type=type,
-                                       Overwrite=True)
+    if values.DryRun is True:
+        logging.info('Dry run of put_parameter')
     else:
-        if key:
-            result = ssm.put_parameter(Name=parameter,
-                                       Value=value,
-                                       Type=type,
-                                       KeyId=key,
-                                       Overwrite=True)
+        if description:
+            if key:
+                result = ssm.put_parameter(Name=parameter,
+                                           Description=description,
+                                           Value=value,
+                                           Type=type,
+                                           KeyId=key,
+                                           Overwrite=True)
+            else:
+                result = ssm.put_parameter(Name=parameter,
+                                           Description=description,
+                                           Value=value,
+                                           Type=type,
+                                           Overwrite=True)
         else:
-            result = ssm.put_parameter(Name=parameter,
-                                       Value=value,
-                                       Type=type,
-                                       Overwrite=True)
+            if key:
+                result = ssm.put_parameter(Name=parameter,
+                                           Value=value,
+                                           Type=type,
+                                           KeyId=key,
+                                           Overwrite=True)
+            else:
+                result = ssm.put_parameter(Name=parameter,
+                                           Value=value,
+                                           Type=type,
+                                           Overwrite=True)
 
     if result:
         if 'ResponseMetadata' in result:

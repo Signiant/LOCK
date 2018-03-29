@@ -6,14 +6,17 @@ import os
 import sys
 import yaml
 from project.plugins import iam
-from project.plugins.iam import validate_new_key, get_new_key, create_and_test_key
-from project.plugins.ec2 import list_instances,  get_instance_status, terminate_instance
+from project.plugins.iam import validate_new_key, get_new_key, create_and_test_key, delete_older_key, get_iam_client, \
+    store_key_parameter_store
+from project.plugins.ec2 import list_instances, get_instance_status,  terminate_instance_id
+from project import values
 
 
 def update_access_key(key):
-    from project import values
     values.access_key = key
 
+def set_DryRun(bool):
+    values.DryRun = bool
 
 def readConfigFile(path):
     configMap = []
@@ -28,32 +31,54 @@ def readConfigFile(path):
 
 def main():
 
-    logFormatter = logging.Formatter('%(asctime)s - %(message)s')
-    rootLogger = logging.getLogger()
-    fileHandler = logging.FileHandler("lock.log")
-    fileHandler.setFormatter(logFormatter)
-    rootLogger.addHandler(fileHandler)
-    consoleHandler = logging.StreamHandler()
-    consoleHandler.setFormatter(logFormatter)
-    rootLogger.addHandler(consoleHandler)
-
     sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-    parser = argparse.ArgumentParser(description='LOCK Let\'s Occasionally Circulate Keys ')
+    parser = argparse.ArgumentParser(description='LOCK Let\'s Occasionally Circulate Keys')
     parser.add_argument('-u', '--user', help='aws user to rotate', required=False)
     parser.add_argument('-c', '--config', help='Full path to a config file', required=True)
-    parser.add_argument('-a', '--action', help='Select the action to run: keys, rotate, validate', required=True)
+    parser.add_argument('-a', '--action', help='Select the action to run: keys, rotate, validate', required=False)
     parser.add_argument('-k', '--key', help='Manually enter new key by skipping get_new_key method', required=False)
     parser.add_argument('-i', '--instance', help='The instance to act on.',required=False)
-
+    parser.add_argument('-d', '--dryRun', help='Run without creating keys or updating keys', action='store_true' ,required=False)
+    parser.add_argument('-p', '--profile', help='The name of the AWS credential profile',required=False)
+    parser.add_argument('-z', '--hidekey', help='Only display access key id when creating a key', action='store_true' ,required=False)
+    parser.add_argument('-e', '--debug', help='Set logging level to debug', action='store_true' ,required=False)
     args = parser.parse_args()
     configMap = readConfigFile(args.config)
 
-    username = 'test_lock'  # args.user
-    args.action = 'rotate'  # 'instance:status'   # run mode
-    args.key = ('', '')
-    args.instance = ''
+    logFormatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
+    rootLogger = logging.getLogger()
+    rootLogger.setLevel(logging.INFO)
+    consoleHandler = logging.StreamHandler()
+    consoleHandler.setFormatter(logFormatter)
+    if args.debug:
+        consoleHandler.setLevel(logging.DEBUG)
+    else:
+        consoleHandler.setLevel(logging.INFO)
+    fileHandler = logging.FileHandler("lock.log")
+    fileHandler.setFormatter(logFormatter)
+    fileHandler.setLevel(logging.ERROR)
+    rootLogger.addHandler(fileHandler)
+    rootLogger.addHandler(consoleHandler)
 
-    #create_and_test_key(configMap, username) # creates a key and 'adds a last used date'
+    args.dryRun = True
+    username = ''#'#args.user ' #'  # args.user
+    args.action = 'rotate'  # 'instance:status'   # run mode
+    args.key = ('test', 'secret')
+    # args.instance = 'i-'
+    #args.profile='dev1'
+
+    set_DryRun(args.dryRun)
+    values.hide_key = args.hidekey
+
+    if args.dryRun is True:
+        logging.critical("Dry Run")
+
+    if args.profile is not None:
+        values.profile = args.profile
+
+    #create_and_test_key(configMap, username)  # creates a key and 'adds a last used date'
+    # client = get_iam_client(configMap)
+    # delete_older_key(client, username)
 
     all_users = configMap['Users']
     for userdata in all_users:
@@ -61,14 +86,12 @@ def main():
             user_data = userdata.get(username)
 
     if 'user_data' not in locals() and username != 'all':
-        print(username+' does not exist in the config file.')
+        logging.info(username+' does not exist in the config file.')
         sys.exit()
 
     # get manually entered key, if any
     if args.key is not None:
         update_access_key(args.key)
-
-    # key_args = {}
     if args.action == 'list':
         if username == 'all':
             for user_data in all_users:
@@ -87,7 +110,12 @@ def main():
             rotate_update(configMap, user_data, username)
 
     elif args.action == 'validate':  # validate that new key is being used and delete the old unused key
-        logging.critical(validate_new_key(configMap, username))
+        if username == 'all':
+            for user_data in all_users:
+                username = (next(iter(user_data)))
+                validate_new_key(configMap, username)
+        else:
+            validate_new_key(configMap, username)
 
     elif args.action == 'getnewkey':  # if you only want to
         get_new_key(configMap, username)
@@ -100,7 +128,7 @@ def main():
     elif args.action == 'instance:terminate':
         if args.instance is not None:
             key_args = {'instance_id': args.instance}
-            terminate_instance(configMap, **key_args)
+            terminate_instance_id(configMap, **key_args)
         else:
             logging.critical("Provide an instance id. '-i x'")
 

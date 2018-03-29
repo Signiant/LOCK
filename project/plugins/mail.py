@@ -1,3 +1,4 @@
+import logging
 import smtplib
 import os
 from email.mime.multipart import MIMEMultipart
@@ -36,8 +37,12 @@ def mail_message(configMap, username,  **key_args):
     server = MailServer(server_name=smtp_server, username=smtp_user, password=smtp_pass, port=smtp_port, require_starttls=smtp_tls)
 
     msg = MailMessage(from_email=smtp_from, to_emails=[email_to_addr], cc_emails=smtp_cc,subject=email_subject,template=template)
-    send(mail_msg=msg, mail_server=server)
-    print("Notification email sent to " + key_args.get('mail_to'))
+
+    if values.DryRun is True:
+        logging.info('Dry run: mail_message; ' + content_title)
+    else:
+        send(mail_msg=msg, mail_server=server)
+        print("Notification email sent to " + key_args.get('mail_to'))
 
 
 class MailServer(object):

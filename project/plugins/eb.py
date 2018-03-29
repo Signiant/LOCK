@@ -1,8 +1,10 @@
-# written by Kevin Haggerty
+# written by K. Haggerty
 import time
 import logging.handlers
 import boto3
 from project import values
+from project.plugins.iam import get_iam_session
+
 
 def handle_eb_update(configMap, username, **key_args):
 
@@ -20,11 +22,7 @@ def rotate_dcrp_credentials(access_key_id, secret_access_key, key_args, configMa
     app_name = key_args.get('app_name')
     environments = key_args.get('environments')
 
-    # SESSION = boto3.session.Session(profile_name=key_args.get('profile'), region_name=key_args.get('region_name'))
-    # EB = SESSION.client('elasticbeanstalk')
-
-    EB=boto3.client('elasticbeanstalk', aws_access_key_id=configMap['Global']['id'],
-                 aws_secret_access_key=configMap['Global']['secret'])
+    EB = get_EB_client(configMap)
 
     for environment_name in environments:
         logging.info('   Updating %s' % environment_name)
@@ -43,6 +41,7 @@ def rotate_dcrp_credentials(access_key_id, secret_access_key, key_args, configMa
                 break
     return result
 
+
 def _is_eb_healthy(app_name, environment, EB):
     query_result = EB.describe_environments(ApplicationName=app_name,
                                             EnvironmentNames=[environment])
@@ -52,8 +51,21 @@ def _is_eb_healthy(app_name, environment, EB):
             return True
     return False
 
+
 def _update_beanstalk_environment(app_name, env_name, options, EB):
-    EB.update_environment(ApplicationName=app_name,
-                          EnvironmentName=env_name,
-                          OptionSettings=options)
+    if values.DryRun is True:
+        logging.info('Dry run: _update_beanstalk_environment; ' +app_name +", "+ env_name)
+    else:
+        EB.update_environment(ApplicationName=app_name,
+                              EnvironmentName=env_name,
+                              OptionSettings=options)
     return True
+
+
+def get_EB_client(configMap):
+    if values.profile is not None:
+        session = get_iam_session()
+        return session.client('elasticbeanstalk')
+    else:
+        return boto3.client('elasticbeanstalk', aws_access_key_id=configMap['Global']['id'],
+                               aws_secret_access_key=configMap['Global']['secret'])

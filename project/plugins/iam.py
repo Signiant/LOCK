@@ -1,37 +1,54 @@
-
 import logging
-from datetime import datetime
-
 import boto3
 import sys
-
-import time
-
 import pytz
-
 from project import values
+from datetime import datetime
 
+logging.getLogger('botocore').setLevel(logging.CRITICAL)
+
+
+def get_iam_session():
+    return boto3.Session(profile_name=values.profile)
 
 def get_iam_client(configMap):
-    return boto3.client('iam', aws_access_key_id=configMap['Global']['id'],
+    if values.profile is not None:
+        session = get_iam_session()
+        return session.client('iam')
+    else:
+        return boto3.client('iam', aws_access_key_id=configMap['Global']['id'],
                                aws_secret_access_key=configMap['Global']['secret'])
 
+def delete_older_key(client, username):  # Delete the key if both have been used
+    keys = get_access_keys(client, username)
+    if len(keys) > 1:
+        keyid1 = keys[0].get('AccessKeyId')
+        keyid2 = keys[1].get('AccessKeyId')
 
-def create_and_test_key(configMap,username):  # TO TEST A KEY
+        key1 = client.get_access_key_last_used(AccessKeyId=keyid1)
+        key2 = client.get_access_key_last_used(AccessKeyId=keyid2)
+
+        if key2.get('AccessKeyLastUsed').get('LastUsedDate') is not None and key1.get('AccessKeyLastUsed').get('LastUsedDate') is not None:
+            if key2.get('AccessKeyLastUsed').get('LastUsedDate') > key1.get('AccessKeyLastUsed').get('LastUsedDate') :
+                delete_old_key(client, username, keyid1)
+                logging.critical('Old key deleted')
+            elif key2.get('AccessKeyLastUsed').get('LastUsedDate') < key1.get('AccessKeyLastUsed').get('LastUsedDate'):
+                delete_old_key(client, username, keyid2)
+                logging.critical('Old key deleted')
+
+
+def create_and_test_key(configMap, username):  # TO TEST A KEY
     client = get_iam_client(configMap)
     response = client.create_access_key(UserName=username)
 
-    keyid = response.get('AccessKey').get('AccessKeyId')
     import time
-    print('Waiting for key to populate...')
+    logging.info('Waiting for key to populate...')
     time.sleep(15)
 
     client2 =boto3.client('iam', aws_access_key_id=response.get('AccessKey').get('AccessKeyId'),
                                  aws_secret_access_key=response.get('AccessKey').get('SecretAccessKey'))
 
     response = client2.list_access_keys(UserName=username)
-    print(response)
-    response = client.get_access_key_last_used(AccessKeyId=keyid)
     print(response)
 
 
@@ -47,6 +64,7 @@ def delete_inactive_key(client, keys, username):
         if (date is None) or (key.get('Status') == 'Inactive'):
             client.delete_access_key(UserName=username, AccessKeyId=key.get('AccessKeyId'))
             logging.critical(username + " inactive key deleted.")
+
 
 
 def create_key(client,username):
@@ -65,7 +83,7 @@ def key_last_used(client, keyId):
 
 
 def get_new_key(configMap, username,  **kwargs):
-    if values.access_key == ("", ""):  # run only if user hasnt manually entered a key
+    if values.access_key == ("", "") and (values.DryRun is False):  # run only if user hasnt manually entered a key
         from project.main import update_access_key
 
         # setup connection
@@ -76,14 +94,18 @@ def get_new_key(configMap, username,  **kwargs):
 
         # delete 'inactive' keys and keys that have never been used (if any)
         delete_inactive_key(client, oldkeys, username)
-
+        delete_older_key(client, username)
         # create a new key
-
         new_key = create_key(client, username)
         logging.critical('New key created for user ' + username)
         update_access_key(new_key)
-        print('New AccessKey: ' + str(new_key))
+        if values.hide_key is True:
+            logging.info('New AccessKey: ' + str(new_key[0]))
+        else:
+            logging.info('New AccessKey: ' + str(new_key))
         return new_key
+    else:
+        logging.info('Dry run of get new key')
 
 
 # validate that new key is being used and delete the old unused key otherwise do nothing and advise the user
@@ -99,30 +121,41 @@ def validate_new_key(configMap, username):
 
     if keys[0].get('CreateDate') > keys[1].get('CreateDate'):  # get the most recently created key
         lastused = lastUsed[0].get('AccessKeyLastUsed').get('LastUsedDate')  # get the most recently created key's last used date
+        old_key_use_date = lastUsed[1].get('AccessKeyLastUsed').get('LastUsedDate')
         n = 0
     elif keys[1].get('CreateDate') > keys[0].get('CreateDate'):
         lastused = lastUsed[1].get('AccessKeyLastUsed').get('LastUsedDate')
+        old_key_use_date = lastUsed[0].get('AccessKeyLastUsed').get('LastUsedDate')
         n = 1
 
+    present = datetime.now()
+    present = pytz.utc.localize(present)
+
+    timediff = old_key_use_date - present
+    if (timediff.seconds / 3600) < configMap['Global']['key_validate_time_check']:
+        logging.info('Old access key was used %s days and %.1f hours ago.' % (str((timediff.days)).replace('-',''), timediff.seconds/3600))
+
     if lastused is None:
-        return "New key has not been used. Check if service is properly running or if the key is properly assigned to the service."
+        logging.info("New key has not been used. Check if service is properly running or if the key is properly assigned to the service.")
     else:
+        list_keys(configMap, username)
         yes = {'yes', 'y', 'ye', ''}
         no = {'no', 'n'}
-        print('Delete old Key (y/n)? ' + (keys[1].get('AccessKeyId') if n == 0 else keys[0].get('AccessKeyId')))
-        choice = input().lower()
+        #  logging.info('Delete the access old key? (y/n) ' + (keys[1].get('AccessKeyId') if n == 0 else keys[0].get('AccessKeyId')))
+        choice = None
+        while choice not in yes and choice not in no:
 
-        if choice in yes:
-            if n == 0:
-                delete_old_key(client, username, keys[1].get('AccessKeyId'))
+            choice = input('Delete the access old key ? (y/n) ' + (keys[1].get('AccessKeyId') if n == 0 else keys[0].get('AccessKeyId'))+'\n').lower()
 
-            else:
-                delete_old_key(client, username, keys[0].get('AccessKeyId'))
-            return logging.critical(username + ': new key in use, old key removed.')
-        elif choice in no:
-            return print('Key was not deleted.')
-        else:
-            sys.stdout.write("Please respond with 'y' or 'n'")
+            if choice in yes:
+                if n == 0:
+                    delete_old_key(client, username, keys[1].get('AccessKeyId'))
+                else:
+                    delete_old_key(client, username, keys[0].get('AccessKeyId'))
+                logging.critical(username + ': new key in use, old key removed.')
+            elif choice in no:
+                logging.info('Key was not deleted.')
+
 
 
 
@@ -139,37 +172,40 @@ def list_keys(configMap, username):
     for key in keys:
         response = (key_last_used(client,key.get('AccessKeyId')))
         key["Last Used"] = response.get('AccessKeyLastUsed').get('LastUsedDate')
-        print('')
+        logging.info('')
         for i in key:
-            print(i, ':', key[i])
+            logging.info(i+ ': '+ str(key[i]))
 
 
 def rotate_ses_smtp_user(configMap, username,  **key_args):
 
     client = get_iam_client(configMap)
-    try:
-        response = client.list_access_keys(UserName=username)
-        keys = response.get('AccessKeyMetadata')
-        for key in keys:
-            response = client.delete_access_key(
-                UserName=username,
-                AccessKeyId=key.get('AccessKeyId')
-            )
-        client.detach_user_policy(UserName=username, PolicyArn=key_args.get('policy_arn'))
-    except:
-        pass
-    delete_iam_user(configMap, username, **key_args)
+    if values.DryRun is True:
+        logging.info('Dry run : rotate_ses_smtp_user')
+    else:
+        try:
+            response = client.list_access_keys(UserName=username)
+            keys = response.get('AccessKeyMetadata')
+            for key in keys:
+                response = client.delete_access_key(
+                    UserName=username,
+                    AccessKeyId=key.get('AccessKeyId')
+                )
+            client.detach_user_policy(UserName=username, PolicyArn=key_args.get('policy_arn'))
+        except:
+            pass
+        delete_iam_user(configMap, username, **key_args)
 
-    client.create_user(UserName=username)
-    client.attach_user_policy(UserName=username, PolicyArn=key_args.get('policy_arn'))
-    key = create_key(client, username)
-    print(key)
+        client.create_user(UserName=username)
+        client.attach_user_policy(UserName=username, PolicyArn=key_args.get('policy_arn'))
+        key = create_key(client, username)
+        logging.info(key)
 
-    password = hash_smtp_pass_from_secret_key(key[1])
+        password = hash_smtp_pass_from_secret_key(key[1])
 
-    user_password = (key[0], password)
-    update_user_password(user_password)
-    logging.critical(username + ' new user and password created')
+        user_password = (key[0], password)
+        update_user_password(user_password)
+        logging.critical(username + ' new user and password created')
 
 
 # https://gist.github.com/w3iBStime/a26bd670bf7f98675674
@@ -189,38 +225,46 @@ def hash_smtp_pass_from_secret_key(secretkey):
 
 
 def store_password_parameter_store(configMap, username,  **key_args):
-    client = boto3.client('ssm', aws_access_key_id=configMap['Global']['id'], aws_secret_access_key=configMap['Global']['secret'])
-
-   # client.get_parameter(Name=username, WithDecryption=True)
+    client = get_ssm_client(configMap)
 
     # NOTE that this is the user/password, the secret key is NOT a regular secret key, while username is the Accesskey
-    client.put_parameter(
-        Name=username,
-        Description='modified by LOCK',
-        Value='Username: ' + values.user_password[0] + ' Password: ' + values.user_password[1].decode("utf-8"),
-        Type='SecureString',
-        Overwrite=True
-    )
-    logging.critical(username + ' username and password written to parameter store.')
+    if values.DryRun is True:
+        logging.info('Dry run: store_key_parameter_store')
+    else:
+        client.put_parameter(
+            Name=username,
+            Description='modified by LOCK',
+            Value='Username: ' + values.user_password[0] + ' Password: ' + values.user_password[1].decode("utf-8"),
+            Type='SecureString',
+            Overwrite=True
+        )
+        logging.critical(username + ' username and password written to parameter store.')
 
 
 def store_key_parameter_store(configMap, username,  **key_args):
 
-    client = boto3.client('ssm', aws_access_key_id=configMap['Global']['id'],
-                          aws_secret_access_key=configMap['Global']['secret'])
-
-    #client.get_parameter(Name=username, WithDecryption=True)
-
-    client.put_parameter(
-        Name=username,
-        Description='modified by LOCK',  # config desc
-        Value='Key Id: ' + values.access_key[0]+' Secret Key: '+values.access_key[1],  # Key ID: XXXXXX Secret Key: XXXX
-        Type='SecureString',
-        Overwrite=True
-    )
-    logging.critical(username+' key written to parameter store.')
+    client = get_ssm_client(configMap)
+    if values.DryRun is True:
+        logging.info('Dry run: store_key_parameter_store')
+    else:
+        client.put_parameter(
+            Name=username,
+            Description='modified by LOCK',  # config desc
+            Value='Key Id: ' + values.access_key[0]+' Secret Key: '+values.access_key[1],  # Key ID: XXXXXX Secret Key: XXXX
+            Type='SecureString',
+            Overwrite=True
+        )
+        logging.critical(username+' key written to parameter store.')
 
 
 def update_user_password(pw):
     from project import values
     values.user_password = pw
+
+def get_ssm_client(configMap):
+    if values.profile is not None:
+        session = get_iam_session()
+        return session.client('ssm')
+    else:
+        return boto3.client('ssm', aws_access_key_id=configMap['Global']['id'],
+                               aws_secret_access_key=configMap['Global']['secret'])

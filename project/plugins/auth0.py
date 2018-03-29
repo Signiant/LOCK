@@ -1,17 +1,22 @@
 import json
 import logging
-
 from project import values
+import requests
+
+def rotate_auth0_key(configMap, username, **key_args):
+
+    #if (key_args.get('account') in configMap['Global']['auth0_email_sender']):
 
 
-def rotate_auth0_key(configMap, username,  **key_args):
+    auth = configMap['Global']['auth0_email_sender'][key_args.get('account')]
+    client_id = auth.get('client_id')
+    client_secret = auth.get('client_secret')
 
-    import requests
 
     headers = {'Content-Type': 'application/JSON; charset=utf-8'}
 
-    data = '{"client_id": "' + key_args.get('client_id') + '",'\
-         '"client_secret":"'+key_args.get('client_secret')+'",' \
+    data = '{"client_id": "' + client_id + '",'\
+         '"client_secret":"'+client_secret+'",' \
          '"audience":"'+key_args.get('url_api')+'",' \
          '"grant_type":"client_credentials"}'
 
@@ -28,7 +33,11 @@ def rotate_auth0_key(configMap, username,  **key_args):
     data = json.loads(data)
     data['credentials']['accessKeyId'] = values.access_key[0]
     data['credentials']['secretAccessKey'] = values.access_key[1]
-    print(data)
     data = json.dumps(data)
     header_auth = {**auth, **headers}
-    response = requests.patch(key_args.get('url_api')+'emails/provider', headers=header_auth, data=data)
+    if values.DryRun is True:
+        logging.info('Dry run, patch Auth0:' + data)
+    else:
+        response = requests.patch(key_args.get('url_api') + 'emails/provider', headers=header_auth, data=data)
+        logging.critical("Auth0 email provider access key updated")
+
