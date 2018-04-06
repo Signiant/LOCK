@@ -3,7 +3,7 @@ import logging
 from project import values
 
 
-def SSH_server(hostname,  username, port, commands,password=None,  pkey=None, marker=None, markers=None): #https://gist.github.com/mlafeldt/841944
+def SSH_server(hostname,  username, port, commands,password=None,  pkey=None, marker=None, markers=None):  # https://gist.github.com/mlafeldt/841944
     import paramiko
 
     try:
@@ -22,15 +22,12 @@ def SSH_server(hostname,  username, port, commands,password=None,  pkey=None, ma
                 get_line = "sudo -- bash -c \"sed -n '/" + mark + "/=' " + path
                 stdin, stdout, stderr = client.exec_command(get_line,get_pty=True)
 
-                # print(stderr.read())
                 line_string = stdout.read().decode('utf-8')
 
-                line=[s.strip() for s in line_string.splitlines()][0] # remove \n and return first int
+                line=[s.strip() for s in line_string.splitlines()][0]  # remove \n and return first int
                 line_num = int(line)
                 commands[i] = commands[i].replace('<line>', str(line_num+1))
-                #logging.info('setting: '+commands[i])
 
-            pass
         if marker is not None:
             line = "sed -n '/" + marker + "/=' " + (commands[0].split()[-1])
             line = line.replace("\"", "")
@@ -39,24 +36,13 @@ def SSH_server(hostname,  username, port, commands,password=None,  pkey=None, ma
             line_num = (stdout.read().decode("utf-8"))
             try:
                 line_num = int(line_num)
-            except :
-                line_num=int([s.strip() for s in line_num.splitlines()][0]) # remove \n and return first int
+            except:
+                line_num = int([s.strip() for s in line_num.splitlines()][0])  # remove \n and return first int
 
-            # print(stderr.read())
-            # print((stdout.read()))
-            # sout=stdout.read()
-            #aa=int(stdout.read())
-            # when debugging reading prevents decoding
-            # linu_num = stdout.read().decode('utf-8')
-            # try:
-            #     linu_num = [s.strip() for s in linu_num.splitlines()][0]
-            # except:
-            #     pass
-            # linu_num=int(linu_num)
             for i, command in enumerate(commands):
                 line_num += 1
                 commands[i] = command.replace('<line>', str(line_num))
-
+        logging.info('Writing to '+hostname)
         for command in commands:
             command = command.replace("<q>", '\\"')
 
@@ -64,29 +50,26 @@ def SSH_server(hostname,  username, port, commands,password=None,  pkey=None, ma
                 command = command.replace('<password>', password)
 
             if values.DryRun is True:
-                logging.info('Dry run,'+hostname+'| ssh command: '+command)
+                logging.info('Dry run, '+hostname+'| ssh command: '+command)
             else:
-                print(command)
                 try:
                     stdin, stdout, stderr = client.exec_command(command,  get_pty=True)
                 except:
-                    logging.error('Failed to write key to '+hostname+': '+ command)
-
-        logging.critical(username+" "+ hostname+" ssh succesfull")
+                    logging.error('Failed to write key to '+hostname)
 
     finally:
         client.close()
 
 
-# write key to any file
+# ssh and write to file using commands
 def ssh_server_command(configMap, username,  **key_args):
         if (key_args.get('hostname') in configMap['Global']['server']):
             auth=configMap['Global']['server'][key_args.get('hostname')]
-            key_args['user']=auth.get('user')
-            key_args['password']=auth.get('password')
+            key_args['user'] = auth.get('user')
+            key_args['password'] = auth.get('password')
 
         list_of_commands = key_args.get('commands')
-        list_of_commands = [command.replace("<new_key_name>", values.access_key[0]).replace("<new_key_secret>", values.access_key[1]) for command in list_of_commands]
+        list_of_commands = [command.replace("<new_key_name>", values.access_key[0].replace("/","\/")).replace("<new_key_secret>", values.access_key[1].replace("/","\/")) for command in list_of_commands]
 
         if key_args.get('pkey') != None:
             SSH_server(hostname=key_args.get('hostname'), username=key_args.get('user'), port=key_args.get('port'), commands=list_of_commands, pkey=key_args.get('pkey'), markers=key_args.get('markers'),marker= key_args.get('marker'))

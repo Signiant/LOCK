@@ -16,7 +16,7 @@ def pause_check(configMap, username,  **key_args):
     else:
         for checkid in checks_to_pause:
             url = "https://api.pingdom.com/api/2.1/checks/<checkid>?paused=true".replace('<checkid>', str(checkid))
-            resp = requests.put(url,  headers={'Account-Email': PINGDOM_ACCOUNT_EMAIL, 'App-Key': API_KEY}, auth=(PINGDOM_USER, PINGDOM_PSWD))
+            requests.put(url,  headers={'Account-Email': PINGDOM_ACCOUNT_EMAIL, 'App-Key': API_KEY}, auth=(PINGDOM_USER, PINGDOM_PSWD))
 
 
 def unpause_check(configMap, username,  **key_args):
@@ -32,6 +32,5 @@ def unpause_check(configMap, username,  **key_args):
     else:
         for checkid in checks_to_unpause:
             url = "https://api.pingdom.com/api/2.1/checks/<checkid>?paused=false".replace('<checkid>', str(checkid))
-            resp = requests.put(url, headers={'Account-Email': PINGDOM_ACCOUNT_EMAIL, 'App-Key': API_KEY},
+            requests.put(url, headers={'Account-Email': PINGDOM_ACCOUNT_EMAIL, 'App-Key': API_KEY},
                                 auth=(PINGDOM_USER, PINGDOM_PSWD))
-            print(resp)

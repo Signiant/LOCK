@@ -44,7 +44,8 @@ def write_s3_file(configMap, username, **key_args):
         logging.info('Dry run, upload file to s3:')
     else:
         try:
-            s3.meta.client.upload_file(file_name, bucket, file_path)
+            response= s3.meta.client.upload_file(file_name, bucket, file_path)
+            print(response)
         except:
             logging.error('Failed to upload '+ file_path)
 

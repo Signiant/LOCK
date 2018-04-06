@@ -25,3 +25,5 @@ def set_environment_variables(configMap, username,  **key_args):
         os.environ[pair[0]] = pair[1]
 
 
+def print_instructions(configMap, username, **key_args):
+   logging.critical(key_args.get('instructions'))

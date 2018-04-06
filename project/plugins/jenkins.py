@@ -12,8 +12,6 @@ def update_credential(configMap, username,  **key_args):
         username = auth.get('user')
         password = auth.get('password')
         jenkins_url = key_args.get('url')
-        # username = key_args.get('user') #if the update_credential config has user and password for each server
-        # password = key_args.get('password')
         creds_description1 = key_args.get('credential_description')
 
         jenkins = Jenkins(jenkins_url, username=username, password=password,

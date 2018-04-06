@@ -4,7 +4,7 @@ import os
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from bs4 import BeautifulSoup
-
+from project import values
 
 path = os.path.dirname(__file__)
 
@@ -19,20 +19,23 @@ def mail_message(configMap, username,  **key_args):
     smtp_pass = configMap['Global']['smtp']['password']
     smtp_from = configMap['Global']['smtp']['from_addr']
     smtp_cc = configMap['Global']['smtp']['cc_addrs']
+    if key_args.get('mail_to_cc') is not None:
+        for email in key_args.get('mail_to_cc'):
+            smtp_cc.append(email)
     email_template_file = configMap['Global']['smtp']['template']
 
-    for userdata in configMap['Users']:
-        if username == (next(iter(userdata))):
-            user_data = userdata.get(username)
+    # for userdata in configMap['Users']:
+    #     if username == (next(iter(userdata))):
+    #         user_data = userdata.get(username)
 
     email_to_addr = key_args.get('mail_to')
     email_subject = "AWS key rotation"
-    content_title = key_args.get('mail_message').replace("<name>", username)
+    content_title = key_args.get('mail_message').replace("<name>", 'LOCK.'+username.upper())
 
-    values = {}
+    htmlvalues = {}
 
-    # insert values
-    template = EmailTemplate(template_name=email_template_file, values=values,content_title=content_title)
+    # insert htmlvalues
+    template = EmailTemplate(template_name=email_template_file, htmlvalues=htmlvalues,content_title=content_title)
 
     server = MailServer(server_name=smtp_server, username=smtp_user, password=smtp_pass, port=smtp_port, require_starttls=smtp_tls)
 
@@ -42,7 +45,7 @@ def mail_message(configMap, username,  **key_args):
         logging.info('Dry run: mail_message; ' + content_title)
     else:
         send(mail_msg=msg, mail_server=server)
-        print("Notification email sent to " + key_args.get('mail_to'))
+        logging.critical("Notification email sent to " + key_args.get('mail_to') + ' cc: '+ str(smtp_cc))
 
 
 class MailServer(object):
@@ -56,14 +59,13 @@ class MailServer(object):
         self.require_starttls = require_starttls
 
 class EmailTemplate():
-    def __init__(self, template_name='', values='', html=True, content_title=''):
+    def __init__(self, template_name='', htmlvalues='', html=True, content_title=''):
         self.template_name = template_name
-        self.values = values
+        self.htmlvalues = htmlvalues
         self.html = html
         self.content_title=content_title
 
     def render(self):
-        from lxml.etree import tostring
         path = os.path.dirname(__file__)
         try:
             content1 = open(path +"/" + self.template_name).read()
@@ -126,7 +128,7 @@ def send(mail_msg, mail_server=MailServer()):
         server.starttls()
     if mail_server.username:
         server.login(mail_server.username, mail_server.password)
-    server.sendmail(mail_msg.from_email, (mail_msg.to_emails + mail_msg.cc_emails), mail_msg.get_message().as_string())
+    response=server.sendmail(mail_msg.from_email, (mail_msg.to_emails + mail_msg.cc_emails), mail_msg.get_message().as_string())
     server.close()
 
 

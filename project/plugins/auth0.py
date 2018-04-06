@@ -3,15 +3,12 @@ import logging
 from project import values
 import requests
 
+
 def rotate_auth0_key(configMap, username, **key_args):
-
-    #if (key_args.get('account') in configMap['Global']['auth0_email_sender']):
-
 
     auth = configMap['Global']['auth0_email_sender'][key_args.get('account')]
     client_id = auth.get('client_id')
     client_secret = auth.get('client_secret')
-
 
     headers = {'Content-Type': 'application/JSON; charset=utf-8'}
 
@@ -39,5 +36,8 @@ def rotate_auth0_key(configMap, username, **key_args):
         logging.info('Dry run, patch Auth0:' + data)
     else:
         response = requests.patch(key_args.get('url_api') + 'emails/provider', headers=header_auth, data=data)
-        logging.critical("Auth0 email provider access key updated")
+        if response.status_code == 200:
+            logging.critical("Auth0 email provider access key updated")
+        else:
+            logging.error("Auth0 key update has not completed")
 

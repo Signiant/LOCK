@@ -8,16 +8,13 @@ from project.plugins.ssh import ssh_server_command
 def rotate_autoscalers_cloud(configMap, username,  **key_args):
 
     auth = configMap['Global']['azure_credentials']
-    # username_azure = auth.get('azure_admin')
-    # password = auth.get('azure_admin_pw')
-    #credentials = UserPassCredentials(username_azure, password) #imcompatible with MFA
 
     credentials = ServicePrincipalCredentials(
         client_id=auth.get('client_id'),
         secret=auth.get('secret'),
         tenant=auth.get('tenant')
     )
-    subscriptions= key_args.get('resource_group_subscriptionid')
+    subscriptions = key_args.get('resource_group_subscriptionid')
 
     for sub in subscriptions:
         region = (list(sub.keys())[0])
@@ -33,7 +30,6 @@ def rotate_autoscalers_cloud(configMap, username,  **key_args):
                     print(item.name)
                     to_rotate.append(item.name)
 
-        # print(to_rotate)
         for vm in to_rotate:  # rotate key for server type
             markers = []
             commands = []
@@ -42,7 +38,6 @@ def rotate_autoscalers_cloud(configMap, username,  **key_args):
                     r=region.replace('-', '')
                     if r in host:
                         key_args['hostname']=host
-                #key_args['hostname'] = key_args.get('autoscaler_host').replace('<SERVER>', vm).replace('<REGION>', region.replace('-', ''))
                 logging.info(key_args['hostname'])
                 for pkey in key_args.get('pkeys'):
                     if region.replace('-','') in pkey:
@@ -53,9 +48,7 @@ def rotate_autoscalers_cloud(configMap, username,  **key_args):
                     commands.append(key_args.get('autoscaler_markers_commands').get(marker))
                 key_args['commands'] = commands
                 key_args['markers'] = markers
-                #print(key_args['hostname'],'\n',key_args['pkey'],'\n', key_args['commands'],'\n', key_args['markers'])                # print(key_args)
                 ssh_server_command(configMap, username, **key_args)
-                # logging.critical("Access key and Secret key written to "+ vm)
             else:  # its a flight server
                 key_args['hostname'] = key_args.get('f_host').replace('<SERVER>', vm).replace('<REGION>', region.replace('-', ''))
                 logging.info(key_args['hostname'])
@@ -67,22 +60,25 @@ def rotate_autoscalers_cloud(configMap, username,  **key_args):
                     commands.append(key_args.get('fadmin_markers_commands').get(marker))
                 key_args['commands'] = commands
                 key_args['markers'] = markers
-                #print(key_args)
                 ssh_server_command(configMap, username, **key_args)
-              #  logging.critical("Access key and Secret key written to " + vm)
-                #print(key_args['hostname'],'\n', key_args['pkey'],'\n',key_args['commands'],'\n',key_args['markers'] )
+
 
 def set_key_vault(configMap, username,  **key_args):
 
-    username = key_args.get('azure_admin')
-    password = key_args.get('azure_admin_pw')
     key_vault_uri = key_args.get('vault_uri')
-    credentials = UserPassCredentials(username, password, resource='https://vault.azure.net')
+    auth = configMap['Global']['azure_credentials']
+
+    credentials = ServicePrincipalCredentials(
+        client_id=auth.get('client_id'),
+        secret=auth.get('secret'),
+        tenant=auth.get('tenant')
+    )
+
     client = KeyVaultClient(credentials)
 
     from project import values
     if values.DryRun is True:
-        logging.info('Dry run ' )
+        logging.info('Dry run ')
     else:
         client.set_secret(key_vault_uri, key_args.get('key_name'), values.access_key[0])
         client.set_secret(key_vault_uri, key_args.get('key_secret'), values.access_key[1])

@@ -6,8 +6,7 @@ import os
 import sys
 import yaml
 from project.plugins import iam
-from project.plugins.iam import validate_new_key, get_new_key, create_and_test_key, delete_older_key, get_iam_client, \
-    store_key_parameter_store
+from project.plugins.iam import validate_new_key, get_new_key, create_and_test_key, delete_older_key, get_iam_client
 from project.plugins.ec2 import list_instances, get_instance_status,  terminate_instance_id
 from project import values
 
@@ -60,10 +59,14 @@ def main():
     rootLogger.addHandler(fileHandler)
     rootLogger.addHandler(consoleHandler)
 
-    args.dryRun = True
-    username = ''#'#args.user ' #'  # args.user
-    args.action = 'rotate'  # 'instance:status'   # run mode
-    args.key = ('test', 'secret')
+    args.dryRun = False
+    username=args.user
+    if args.user is None:
+        username = 'test_lock'  # args.user
+    #username= args.user
+    if args.action is None:
+        args.action = 'list'  # 'instance:status'
+    #args.key = ('sdfsd', 'fsdf')
     # args.instance = 'i-'
     #args.profile='dev1'
 
@@ -77,8 +80,6 @@ def main():
         values.profile = args.profile
 
     #create_and_test_key(configMap, username)  # creates a key and 'adds a last used date'
-    # client = get_iam_client(configMap)
-    # delete_older_key(client, username)
 
     all_users = configMap['Users']
     for userdata in all_users:
@@ -93,12 +94,14 @@ def main():
     if args.key is not None:
         update_access_key(args.key)
     if args.action == 'list':
+        key_args={}
+        client = get_iam_client(configMap, **key_args )
         if username == 'all':
             for user_data in all_users:
                 username = (next(iter(user_data)))
-                iam.list_keys(configMap, username)
+                iam.list_keys(configMap, username, client)
         else:
-            iam.list_keys(configMap, username)
+            iam.list_keys(configMap, username, client)
 
     elif args.action == 'rotate':  # run functions listed in the config file.
         if username == 'all':
@@ -122,7 +125,6 @@ def main():
 
     elif args.action == 'instance:ids':
         instances = user_data['instances']
-
         list_instances(configMap, instances)
 
     elif args.action == 'instance:terminate':
