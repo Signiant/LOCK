@@ -1,0 +1,8 @@
+azure>=2.0.0
+pytz>=2018.3
+jenkinsapi>=0.3.6
+requests>=2.18.4
+boto3>=1.5.20
+msrestazure>=0.4.21
+paramiko>=2.4.0
+PyYAML>=3.12

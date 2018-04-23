@@ -5,11 +5,8 @@ AWS Parameter Store help methods - currently extending boto3
 """
 
 import logging
-import argparse
 import sys
 import os
-import boto3, botocore
-
 from project import values
 from project.plugins.iam import get_ssm_client
 

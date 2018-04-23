@@ -1,8 +1,5 @@
 import logging
-import subprocess
-
 import os
-
 from project import values
 from subprocess import call
 

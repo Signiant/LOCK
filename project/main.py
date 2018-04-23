@@ -59,16 +59,13 @@ def main():
     rootLogger.addHandler(fileHandler)
     rootLogger.addHandler(consoleHandler)
 
-    args.dryRun = False
+    args.dryRun = True
     username=args.user
     if args.user is None:
         username = 'test_lock'  # args.user
-    #username= args.user
     if args.action is None:
         args.action = 'list'  # 'instance:status'
-    #args.key = ('sdfsd', 'fsdf')
-    # args.instance = 'i-'
-    #args.profile='dev1'
+
 
     set_DryRun(args.dryRun)
     values.hide_key = args.hidekey
@@ -78,8 +75,6 @@ def main():
 
     if args.profile is not None:
         values.profile = args.profile
-
-    #create_and_test_key(configMap, username)  # creates a key and 'adds a last used date'
 
     all_users = configMap['Users']
     for userdata in all_users:
