@@ -59,7 +59,6 @@ def main():
     rootLogger.addHandler(fileHandler)
     rootLogger.addHandler(consoleHandler)
 
-    args.dryRun = True
     username=args.user
     if args.user is None:
         username = 'test_lock'  # args.user
