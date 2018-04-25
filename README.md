@@ -4,11 +4,10 @@ Let's Occasionally Circulate Keys
 A AWS key 
 
 ## Installing the Tool
- 1. Install python 3 or higher
- 2. Install LOCK with pip:
- >     sudo pip3 install lock-key-rotation
- 3. Run the tool anywhere using the new console script "lock" with required arguments.
- >     lock -c 'pathtofile/config.yaml' -u iamuser -m rotate
+- install python3.6 or higher
+- pull the project from github 
+- Install the required libraries if needed:  pip3 install -r /path/to/requirements.txt
+- run from LOCK's root folder: python3 -m project.main -c "/path/to/config.yaml" -a rotate -u all
 
 ## How it works
 LOCK has 4 main modes that accept the IAM user as an argument.
