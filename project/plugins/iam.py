@@ -46,7 +46,8 @@ def delete_prompt(configMap, username,client,key):
     choice = None
     while choice not in yes and choice not in no:
         time.sleep(1)
-        choice = input('There are 2 keys. Delete the old access key ? (y/n) ' +key)
+
+        choice = input('There are 2 keys. Delete the old access key: % ? (y/n) \n' % key)
         if choice in yes:
             delete_old_key(client, username, key)
             logging.info("      "+username + ': Old key deleted')
@@ -117,9 +118,9 @@ def get_new_key(configMap, username,  **kwargs):
         logging.info('      New key created for user ' + username)
         update_access_key(new_key)
         if values.hide_key is True:
-            logging.info('New AccessKey: ' + str(new_key[0]))
+            print('                           New AccessKey: ' + str(new_key[0]))
         else:
-            logging.info('New AccessKey: ' + str(new_key))
+            print('                           New AccessKey: ' + str(new_key))
         return new_key
     else:
         logging.info('Dry run of get new key')
@@ -158,13 +159,11 @@ def validate_new_key(configMap, username):
 
         yes = {'yes', 'y', 'ye', ''}
         no = {'no', 'n'}
-        #  logging.info('Delete the access old key? (y/n) ' + (keys[1].get('AccessKeyId') if n == 0 else keys[0].get('AccessKeyId')))
         choice = None
         while choice not in yes and choice not in no:
 
             keyname=(keys[1].get('AccessKeyId') if n == 0 else keys[0].get('AccessKeyId'))
             choice = input('Delete the old access key:'+ keyname +'? (y/n) \n' ).lower()
-
             if choice in yes:
                 if n == 0:
                     delete_old_key(client, username, keys[1].get('AccessKeyId'))
@@ -222,7 +221,7 @@ def rotate_ses_smtp_user(configMap, username,  **key_args):
         client.create_user(UserName=username)
         client.attach_user_policy(UserName=username, PolicyArn=key_args.get('policy_arn'))
         key = create_key(client, username)
-        logging.info(key)
+        print('                           New AccessKey: ' + str(key))
 
         password = hash_smtp_pass_from_secret_key(key[1])
 

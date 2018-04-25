@@ -59,6 +59,7 @@ def main():
     rootLogger.addHandler(fileHandler)
     rootLogger.addHandler(consoleHandler)
 
+    # args.dryRun = True
     username=args.user
     if args.user is None:
         username = 'test_lock'  # args.user
@@ -139,6 +140,7 @@ def main():
 
 
 def rotate_update(configMap, user_data, username):
+    update_access_key(('',''))
     modules = user_data['plugins']
     for plugin in modules:
         my_plugin = importlib.import_module('project.plugins.' + list(plugin.keys())[0])
@@ -150,7 +152,6 @@ def rotate_update(configMap, user_data, username):
             method_to_call = getattr(my_plugin, list(method.keys())[0])  # get method name to run
             logging.info("Running "+str(method_to_call)[:-15] + "for " + username)
             method_to_call(configMap, username, **key_args)
-    update_access_key(('',''))
 
 
 if __name__ == "__main__":

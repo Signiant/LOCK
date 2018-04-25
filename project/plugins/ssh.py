@@ -1,20 +1,22 @@
 import json
 import logging
+import paramiko
 from project import values
 
 
 def SSH_server(hostname,  username, port, commands,password=None,  pkey=None, marker=None, markers=None):  # https://gist.github.com/mlafeldt/841944
-    import paramiko
 
     try:
         client = paramiko.SSHClient()
         client.load_system_host_keys()
         client.set_missing_host_key_policy(paramiko.WarningPolicy)
 
-        if pkey == None:
-            client.connect(hostname, port=port, username=username, password=password)
+        if not pkey:
+            logging.info('Authenticating with username and password')
+            client.connect(hostname, port=port, username=username, password=password, allow_agent=False, look_for_keys=False)
         else:
             k = paramiko.RSAKey.from_private_key_file(pkey)
+            logging.info('Authenticating with public key')
             client.connect(hostname,  username=username,  pkey=k)
         if markers is not None: # Currently Azure only
             for i, mark in enumerate(markers):
@@ -53,7 +55,12 @@ def SSH_server(hostname,  username, port, commands,password=None,  pkey=None, ma
                 logging.info('Dry run, '+hostname+'| ssh command: '+command)
             else:
                 try:
+                    # logging.info('Running command: %s' % str(command))
                     stdin, stdout, stderr = client.exec_command(command,  get_pty=True)
+                    stdout.read()
+                    error = stderr.read()
+                    if error:
+                        logging.error('Error runnng command: %s' % error)
                 except:
                     logging.error('Failed to write key to '+hostname)
 
