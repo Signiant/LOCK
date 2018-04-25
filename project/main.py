@@ -55,7 +55,7 @@ def main():
         consoleHandler.setLevel(logging.INFO)
     fileHandler = logging.FileHandler("lock.log")
     fileHandler.setFormatter(logFormatter)
-    fileHandler.setLevel(logging.ERROR)
+    fileHandler.setLevel(logging.DEBUG)
     rootLogger.addHandler(fileHandler)
     rootLogger.addHandler(consoleHandler)
 

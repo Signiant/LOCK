@@ -35,7 +35,7 @@ def get_elb_client(configMap, **key_args):
 def list_instances(configMap, instance_name,  **key_args):
 
     client = get_ec2_client(configMap, **key_args)
-    intance_IDs = []
+    instance_IDs = []
 
     response = client.describe_instances()
     for instance in response.get('Reservations'):
@@ -46,11 +46,12 @@ def list_instances(configMap, instance_name,  **key_args):
                     if name.get('Key') == 'Name':
                         if instance_name in name.get('Value'):
                             instanceName = name.get('Value')
-                            intance_IDs.append(instance.get('InstanceId'))
+                            instance_IDs.append(instance.get('InstanceId'))
                             #print(instanceName + " Instance ID: " + instance.get('InstanceId'))
         except:
             pass
-    return intance_IDs
+    logging.debug('    Found the following instances with Name %s: %s' % (instance_name, str(instance_IDs)))
+    return instance_IDs
 
 
 def terminate_instance_id(configMap, **key_args):
@@ -58,6 +59,7 @@ def terminate_instance_id(configMap, **key_args):
     client = get_ec2_client(configMap, **key_args)
     response = client.terminate_instances(InstanceIds=[key_args.get('instance_id')],)
     logging.info('      '+key_args.get('instance_id')+ " instance terminated")
+
 
 def get_instance_status(configMap, **key_args):
 
