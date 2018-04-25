@@ -6,3 +6,4 @@ boto3>=1.5.20
 msrestazure>=0.4.21
 paramiko>=2.4.0
 PyYAML>=3.12
+beautifulsoup4>=4.6.0
