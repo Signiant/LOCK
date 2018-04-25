@@ -78,7 +78,7 @@ def terminate_instances(configMap, username,  **key_args):
     instance_names = key_args.get('instances')
 
     for instance_name in instance_names:
-        print(instance_name)
+        logging.info('  Terminating instance for %s' % instance_name)
         elb_name = get_loadbalancername(configMap, instance_name, elb_client, **key_args)
         instances = list_instances(configMap, instance_name,  **key_args)
         growing_instance_list = instances  # list grows as more instances are terminated and new ones are generated
@@ -89,6 +89,15 @@ def terminate_instances(configMap, username,  **key_args):
             if values.DryRun is True:
                 logging.info('Dry run instance:'+instance_name + " " + instanceid)
             else:
+                # Remove instance from loadbalancer
+                logging.info('    Removing %s from loadbalancer' % instanceid)
+                if not _remove_instance_from_loadbalancer(elb_client, elb_name, instanceid):
+                    logging.warning('Failed to remove instance from loadbalancer')
+                else:
+                    logging.info('      Successfully removed %s from loadbalancer - pausing for 60 seconds' % instanceid)
+                # Pause for 60 seconds while connections drain on the instance
+                time.sleep(60)
+                logging.info('    Terminating instance %s' % instanceid)
                 terminate_instance_id(configMap, **key_args)
                 while(reachable==False):
                     checkinstancelist = list_instances(configMap, instance_name, **key_args)
@@ -103,10 +112,10 @@ def terminate_instances(configMap, username,  **key_args):
                             #check load balancer
                             # logging.info('waiting 200 seconds for app to start...')
                             while not _is_instance_inService(elb_client,elb_name, new_instance_id[0]):
-                                logging.info('Waiting for instance to be InService...')
+                                logging.info('      Waiting for instance to be InService...')
                                 time.sleep(45)
                     if not reachable:
-                        logging.info('waiting on valid status...')
+                        logging.info('      waiting on valid status...')
                         time.sleep(45)
     pass
 
@@ -122,6 +131,17 @@ def get_loadbalancername(configMap,instance_name,client, **key_args):
         for tag in tags:
             if tag.get('Value') == instance_name:
                 return loadbalancer.get('LoadBalancerName')
+
+def _remove_instance_from_loadbalancer(elb_client, elb_name, instance_id):
+    response = elb_client.deregister_instances_from_load_balancer(
+        LoadBalancerName=elb_name,
+        Instances=[
+            {
+                'InstanceId': instance_id
+            },
+        ]
+    )
+    return response.get('ResponseMetadata').get('HTTPStatusCode') == 200
 
 
 ##
