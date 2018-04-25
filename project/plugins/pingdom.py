@@ -15,9 +15,10 @@ def pause_check(configMap, username,  **key_args):
         logging.info('Dry run of pause_check')
     else:
         for checkid in checks_to_pause:
-            url = "https://api.pingdom.com/api/2.1/checks/<checkid>?paused=true".replace('<checkid>', str(checkid))
-            requests.put(url,  headers={'Account-Email': PINGDOM_ACCOUNT_EMAIL, 'App-Key': API_KEY}, auth=(PINGDOM_USER, PINGDOM_PSWD))
 
+            url = "https://api.pingdom.com/api/2.1/checks/<checkid>?paused=true".replace('<checkid>', str(checkid))
+            response = requests.put(url,  headers={'Account-Email': PINGDOM_ACCOUNT_EMAIL, 'App-Key': API_KEY}, auth=(PINGDOM_USER, PINGDOM_PSWD))
+            print(response.text)
 
 def unpause_check(configMap, username,  **key_args):
 
@@ -32,5 +33,6 @@ def unpause_check(configMap, username,  **key_args):
     else:
         for checkid in checks_to_unpause:
             url = "https://api.pingdom.com/api/2.1/checks/<checkid>?paused=false".replace('<checkid>', str(checkid))
-            requests.put(url, headers={'Account-Email': PINGDOM_ACCOUNT_EMAIL, 'App-Key': API_KEY},
+            response = requests.put(url, headers={'Account-Email': PINGDOM_ACCOUNT_EMAIL, 'App-Key': API_KEY},
                                 auth=(PINGDOM_USER, PINGDOM_PSWD))
+            print(response.text)
