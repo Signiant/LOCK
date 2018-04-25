@@ -24,9 +24,12 @@ def get_elb_client(configMap, **key_args):
         session = get_iam_e_session(**key_args)
         return session.client('elb')
     else:
-        return boto3.client('elb', aws_access_key_id=configMap['Global']['id'],
-                            aws_secret_access_key=configMap['Global']['secret'])
-
+        if key_args.get('region'):
+            return boto3.client('elb', aws_access_key_id=configMap['Global']['id'],
+                                aws_secret_access_key=configMap['Global']['secret'], region_name=key_args.get('region'))
+        else:
+            return boto3.client('elb', aws_access_key_id=configMap['Global']['id'],
+                                aws_secret_access_key=configMap['Global']['secret'])
 
 
 def list_instances(configMap, instance_name,  **key_args):
@@ -41,7 +44,7 @@ def list_instances(configMap, instance_name,  **key_args):
         try:
             for name in instance.get('Tags'):
                     if name.get('Key') == 'Name':
-                        if name.get('Value') in instance_name:
+                        if instance_name in name.get('Value'):
                             instanceName = name.get('Value')
                             intance_IDs.append(instance.get('InstanceId'))
                             #print(instanceName + " Instance ID: " + instance.get('InstanceId'))
