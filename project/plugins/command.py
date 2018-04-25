@@ -23,4 +23,4 @@ def set_environment_variables(configMap, username,  **key_args):
 
 
 def print_instructions(configMap, username, **key_args):
-   logging.critical(key_args.get('instructions'))
+   logging.info(key_args.get('instructions'))

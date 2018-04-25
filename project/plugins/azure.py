@@ -82,6 +82,6 @@ def set_key_vault(configMap, username,  **key_args):
     else:
         client.set_secret(key_vault_uri, key_args.get('key_name'), values.access_key[0])
         client.set_secret(key_vault_uri, key_args.get('key_secret'), values.access_key[1])
-        logging.critical("Access key and Secret key written to key vault")
+        logging.info("      Access key and Secret key written to key vault")
         pass
 

@@ -45,7 +45,7 @@ def mail_message(configMap, username,  **key_args):
         logging.info('Dry run: mail_message; ' + content_title)
     else:
         send(mail_msg=msg, mail_server=server)
-        logging.critical("Notification email sent to " + key_args.get('mail_to') + ' cc: '+ str(smtp_cc))
+        logging.info("Notification email sent to " + key_args.get('mail_to') + ' cc: '+ str(smtp_cc))
 
 
 class MailServer(object):

@@ -49,9 +49,9 @@ def delete_prompt(configMap, username,client,key):
         choice = input('There are 2 keys. Delete the old access key ? (y/n) ' +key)
         if choice in yes:
             delete_old_key(client, username, key)
-            logging.critical(username + ': Old key deleted')
+            logging.info("      "+username + ': Old key deleted')
         elif choice in no:
-            logging.info('Key was not deleted.')
+            logging.info('      Key was not deleted.')
             sys.exit()
 
 def create_and_test_key(configMap, username):  # TO TEST A KEY
@@ -80,7 +80,7 @@ def delete_inactive_key(client, keys, username):
         date = response.get('AccessKeyLastUsed').get('LastUsedDate')
         if (date is None) or (key.get('Status') == 'Inactive'):
             client.delete_access_key(UserName=username, AccessKeyId=key.get('AccessKeyId'))
-            logging.critical(username + " inactive key deleted.")
+            logging.info('      '+username + " inactive key deleted.")
 
 
 
@@ -114,7 +114,7 @@ def get_new_key(configMap, username,  **kwargs):
         delete_older_key(configMap, username, client)
         # create a new key
         new_key = create_key(client, username)
-        logging.critical('New key created for user ' + username)
+        logging.info('      New key created for user ' + username)
         update_access_key(new_key)
         if values.hide_key is True:
             logging.info('New AccessKey: ' + str(new_key[0]))
@@ -169,7 +169,7 @@ def validate_new_key(configMap, username):
                     delete_old_key(client, username, keys[1].get('AccessKeyId'))
                 else:
                     delete_old_key(client, username, keys[0].get('AccessKeyId'))
-                logging.critical(username + ': Old key deleted.')
+                logging.info('      '+username + ': Old key deleted.')
             elif choice in no:
                 logging.info('Key was not deleted.')
     else:
@@ -227,7 +227,7 @@ def rotate_ses_smtp_user(configMap, username,  **key_args):
 
         user_password = (key[0], password)
         update_user_password(user_password)
-        logging.critical(username + ' new user and password created')
+        logging.info('      '+username + ' new user and password created')
 
 
 # https://gist.github.com/w3iBStime/a26bd670bf7f98675674
@@ -261,7 +261,7 @@ def store_password_parameter_store(configMap, username,  **key_args):
             KeyId=configMap['Global']['parameter_store']['KeyId'],
             Overwrite=True
         )
-        logging.critical(username + ' username and password written to parameter store.')
+        logging.info('      '+username + ' username and password written to parameter store.')
 
 
 def store_key_parameter_store(configMap, username,  **key_args):
@@ -278,7 +278,7 @@ def store_key_parameter_store(configMap, username,  **key_args):
             KeyId=configMap['Global']['parameter_store']['KeyId'],
             Overwrite=True
         )
-        logging.critical(username+' key written to parameter store.')
+        logging.info('      '+username+' key written to parameter store.')
 
 
 def update_user_password(pw):

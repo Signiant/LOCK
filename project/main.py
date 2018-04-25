@@ -24,7 +24,7 @@ def readConfigFile(path):
         configMap = yaml.load(config_file_handle)
         config_file_handle.close()
     except:
-        logging.critical("Error: Unable to open config file %s or invalid Yaml" % path)
+        logging.info("Error: Unable to open config file %s or invalid Yaml" % path)
     return configMap
 
 
@@ -70,7 +70,7 @@ def main():
     values.hide_key = args.hidekey
 
     if args.dryRun is True:
-        logging.critical("Dry Run")
+        logging.info("Dry Run")
 
     if args.profile is not None:
         values.profile = args.profile
@@ -126,14 +126,14 @@ def main():
             key_args = {'instance_id': args.instance}
             terminate_instance_id(configMap, **key_args)
         else:
-            logging.critical("Provide an instance id. '-i x'")
+            logging.info("Provide an instance id. '-i x'")
 
     elif args.action == 'instance:status':
         if args.instance is not None:
             key_args = {'instance_id': args.instance}
             get_instance_status(configMap, **key_args)
         else:
-            logging.critical("Provide an instance id. '-i x' ")
+            logging.info("Provide an instance id. '-i x' ")
 
     print("")
 
@@ -148,8 +148,9 @@ def rotate_update(configMap, user_data, username):
             if key_args is None:
                 key_args = {}
             method_to_call = getattr(my_plugin, list(method.keys())[0])  # get method name to run
-            logging.critical("Running "+str(method_to_call)[:-15] + "for " + username)
+            logging.info("Running "+str(method_to_call)[:-15] + "for " + username)
             method_to_call(configMap, username, **key_args)
+    update_access_key(('',''))
 
 
 if __name__ == "__main__":

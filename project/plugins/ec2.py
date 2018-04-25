@@ -54,7 +54,7 @@ def terminate_instance_id(configMap, **key_args):
 
     client = get_ec2_client(configMap, **key_args)
     response = client.terminate_instances(InstanceIds=[key_args.get('instance_id')],)
-    logging.critical(key_args.get('instance_id')+ " instance terminated")
+    logging.info('      '+key_args.get('instance_id')+ " instance terminated")
 
 def get_instance_status(configMap, **key_args):
 
@@ -76,11 +76,10 @@ def terminate_instances(configMap, username,  **key_args):
 
 
     instance_names = key_args.get('instances')
-    print(instance_names)
 
     for instance_name in instance_names:
+        print(instance_name)
         elb_name = get_loadbalancername(configMap, instance_name, elb_client, **key_args)
-        print(elb_name)
         instances = list_instances(configMap, instance_name,  **key_args)
         growing_instance_list = instances  # list grows as more instances are terminated and new ones are generated
         for instanceid in instances:
@@ -97,8 +96,6 @@ def terminate_instances(configMap, username,  **key_args):
                         new_instance_id = list(set(checkinstancelist) - set(growing_instance_list))
 
                         key_args['instance_id'] = new_instance_id[0]
-                        print(new_instance_id[0])
-                        print(growing_instance_list)
                         instance_reachability = get_describe_instance_status(configMap, **key_args)
                         if instance_reachability == "passed":
                             reachable = True

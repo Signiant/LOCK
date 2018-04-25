@@ -99,4 +99,4 @@ def set_param(configMap, username, **key_args):
 
     result = set_paramameter(configMap,key_args.get('region_list'), key_args.get('param_name'), value, value_is_file=False, description=None, encrypt=encrypt, key=key_args.get('key'))
     for region in result:
-        logging.critical(region + ': ' + ("Success" if result[region] == 200 else "Failed"))
+        logging.info('      '+region + ': ' + ("Success" if result[region] == 200 else "Failed"))
