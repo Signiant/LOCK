@@ -7,3 +7,4 @@ msrestazure>=0.4.21
 paramiko>=2.4.0
 PyYAML>=3.12
 beautifulsoup4>=4.6.0
+keyring>=11.0.0   
