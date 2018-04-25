@@ -27,9 +27,9 @@ def rotate_autoscalers_cloud(configMap, username,  **key_args):
 
         for item in ressource_groups:
             if item.type == 'Microsoft.Compute/virtualMachines':
-                    print(item.name)
                     to_rotate.append(item.name)
 
+        #Build dns names
         for vm in to_rotate:  # rotate key for server type
             markers = []
             commands = []
@@ -38,7 +38,7 @@ def rotate_autoscalers_cloud(configMap, username,  **key_args):
                     r=region.replace('-', '')
                     if r in host:
                         key_args['hostname']=host
-                logging.info(key_args['hostname'])
+                logging.info('      Writing key to '+key_args['hostname'])
                 for pkey in key_args.get('pkeys'):
                     if region.replace('-','') in pkey:
                         key_args['pkey'] = pkey
@@ -51,7 +51,7 @@ def rotate_autoscalers_cloud(configMap, username,  **key_args):
                 ssh_server_command(configMap, username, **key_args)
             else:  # its a flight server
                 key_args['hostname'] = key_args.get('f_host').replace('<SERVER>', vm).replace('<REGION>', region.replace('-', ''))
-                logging.info(key_args['hostname'])
+                logging.info('      Writing key to '+key_args['hostname'])
                 for pkey in key_args.get('pkeys'):
                     if region.replace('-', '') in pkey:
                         key_args['pkey'] = pkey

@@ -10,7 +10,6 @@ def pause_check(configMap, username,  **key_args):
     API_KEY = configMap['Global']['pingdom']['api_key']
     PINGDOM_USER = configMap['Global']['pingdom']['username']
     PINGDOM_PSWD = configMap['Global']['pingdom']['password']
-    #checks_to_pause = key_args.values()
     checks_to_pause = list(key_args.keys())
     if values.DryRun is True:
         logging.info('Dry run of pause_check')
@@ -31,7 +30,6 @@ def unpause_check(configMap, username,  **key_args):
     API_KEY = configMap['Global']['pingdom']['api_key']
     PINGDOM_USER = configMap['Global']['pingdom']['username']
     PINGDOM_PSWD = configMap['Global']['pingdom']['password']
-    #checks_to_unpause = key_args.values()
     checks_to_unpause = list(key_args.keys())
 
     if values.DryRun is True:
