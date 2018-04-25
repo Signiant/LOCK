@@ -24,7 +24,11 @@ def get_elb_client(configMap, **key_args):
         session = get_iam_e_session(**key_args)
         return session.client('elb')
     else:
-        return boto3.client('elb', aws_access_key_id=configMap['Global']['id'],
+        if key_args.get('region'):
+            return boto3.client('elb', aws_access_key_id=configMap['Global']['id'],
+                                aws_secret_access_key=configMap['Global']['secret'], region_name=key_args.get('region'))
+        else:
+            return boto3.client('elb', aws_access_key_id=configMap['Global']['id'],
                             aws_secret_access_key=configMap['Global']['secret'])
 
 
@@ -78,7 +82,7 @@ def terminate_instances(configMap, username,  **key_args):
     instance_names = key_args.get('instances')
 
     for instance_name in instance_names:
-        print(instance_name)
+        print("terminating instances for:"+ instance_name)
         elb_name = get_loadbalancername(configMap, instance_name, elb_client, **key_args)
         instances = list_instances(configMap, instance_name,  **key_args)
         growing_instance_list = instances  # list grows as more instances are terminated and new ones are generated

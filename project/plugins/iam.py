@@ -162,7 +162,8 @@ def validate_new_key(configMap, username):
         choice = None
         while choice not in yes and choice not in no:
 
-            choice = input('Delete the old access key ? (y/n) ' + (keys[1].get('AccessKeyId') if n == 0 else keys[0].get('AccessKeyId'))+'\n').lower()
+            keyname=(keys[1].get('AccessKeyId') if n == 0 else keys[0].get('AccessKeyId'))
+            choice = input('Delete the old access key:'+ keyname +'? (y/n) \n' ).lower()
 
             if choice in yes:
                 if n == 0:
