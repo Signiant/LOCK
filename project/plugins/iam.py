@@ -130,14 +130,17 @@ def get_new_key(configMap, username,  **kwargs):
 def validate_new_key(configMap, username,user_data):
     logging.info('Validating keys for user: %s' % username)
 
-    aws_profile = user_data.get(username).get('plugins')[0].get('iam')[0].get('get_new_key').get('credential_profile')
+    iam_data = user_data.get(username).get('plugins')[0].get('iam')[0].get('get_new_key')
+    aws_profile = None
+    if iam_data:
+        aws_profile = iam_data.get('credential_profile')
     if aws_profile:
         kwargs={}
         kwargs['credential_profile']=aws_profile
-        get_iam_client(configMap, **kwargs)
+        client = get_iam_client(configMap, **kwargs)
     else:
         client = get_iam_client(configMap)
-        keys = get_access_keys(client, username)
+    keys = get_access_keys(client, username)
 
     lastUsed = []
     for key in keys:
@@ -156,16 +159,25 @@ def validate_new_key(configMap, username,user_data):
             new_key_index = 1
             old_key_index = 0
 
-        present = datetime.now()
+        present = datetime.utcnow()
         present = pytz.utc.localize(present)
+        logging.debug('   Present time (UTC): %s' % str(present))
+        logging.debug('   Old key time (UTC): %s' % str(old_key_use_date))
 
-        timediff = old_key_use_date - present
+        timediff = present - old_key_use_date
+        timediff_hours = (timediff.days * 24) + (timediff.seconds / 3600)
+        logging.debug('   timediff: %s' % str(timediff))
+        logging.debug('   timdiff (hours): %s' % str(timediff_hours))
 
         oldkeyname = keys[old_key_index].get('AccessKeyId')
         newkeyname = keys[new_key_index].get('AccessKeyId')
 
-        if (timediff.seconds / 3600) < configMap['Global']['key_validate_time_check']:
-            logging.info('   Old key (%s) was last used: %s' % (oldkeyname,str(old_key_use_date)))
+        logging.info('   Old key (%s) was last used: %s' % (oldkeyname,str(old_key_use_date)))
+
+        logging.debug('   Time diff in hours: %s' % str(timediff_hours))
+
+        if timediff_hours < configMap['Global']['key_validate_time_check']:
+            logging.warning('      Old key was used less than %s hours ago' % (str(configMap['Global']['key_validate_time_check'])))
 
         if lastused is None:
             logging.info("   New key (%s) has not been used. Check if service is properly running or if the key is properly assigned to the service." % newkeyname)
@@ -176,7 +188,7 @@ def validate_new_key(configMap, username,user_data):
         choice = None
         while choice not in yes and choice not in no:
 
-            choice = input('   Delete the old access key:'+ oldkeyname +'? (y/n) \n' ).lower()
+            choice = input('   Delete the old access key:'+ oldkeyname +'? (y/n) ' ).lower()
             if choice in yes:
                 delete_old_key(client, username, keys[old_key_index].get('AccessKeyId'))
                 logging.info('      '+username + ': Old key deleted.')
