@@ -151,19 +151,21 @@ def validate_new_key(configMap, username):
         present = pytz.utc.localize(present)
 
         timediff = old_key_use_date - present
-        print('')
+        oldkeyname = (keys[1].get('AccessKeyId') if n == 0 else keys[0].get('AccessKeyId'))
 
         if (timediff.seconds / 3600) < configMap['Global']['key_validate_time_check']:
-            logging.info('Old access key was used %s days and %.1f hours ago.' % (str((timediff.days)).replace('-',''), timediff.seconds/3600))
-        logging.info("New key has not been used. Check if service is properly running or if the key is properly assigned to the service.")
+            logging.info('Old access key (%s) was used %s days and %.1f hours ago.' % (oldkeyname,str((timediff.days)).replace('-',''), timediff.seconds/3600))
 
+        if lastused is None:
+            logging.info("New key has not been used. Check if service is properly running or if the key is properly assigned to the service.")
+        else:
+            logging.info("New key was last used: "+lastused)
         yes = {'yes', 'y', 'ye', ''}
         no = {'no', 'n'}
         choice = None
         while choice not in yes and choice not in no:
 
-            keyname=(keys[1].get('AccessKeyId') if n == 0 else keys[0].get('AccessKeyId'))
-            choice = input('Delete the old access key:'+ keyname +'? (y/n) \n' ).lower()
+            choice = input('Delete the old access key:'+ oldkeyname +'? (y/n) \n' ).lower()
             if choice in yes:
                 if n == 0:
                     delete_old_key(client, username, keys[1].get('AccessKeyId'))
