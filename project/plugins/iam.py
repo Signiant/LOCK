@@ -128,6 +128,7 @@ def get_new_key(configMap, username,  **kwargs):
 
 # validate that new key is being used and delete the old unused key otherwise do nothing and advise the user
 def validate_new_key(configMap, username):
+    logging.info('Validating keys for user: %s' % username)
 
     client = get_iam_client(configMap)
     keys = get_access_keys(client, username)
@@ -141,41 +142,42 @@ def validate_new_key(configMap, username):
         if keys[0].get('CreateDate') > keys[1].get('CreateDate'):  # get the most recently created key
             lastused = lastUsed[0].get('AccessKeyLastUsed').get('LastUsedDate')  # get the most recently created key's last used date
             old_key_use_date = lastUsed[1].get('AccessKeyLastUsed').get('LastUsedDate')
-            n = 0
+            new_key_index = 0
+            old_key_index = 1
         elif keys[1].get('CreateDate') > keys[0].get('CreateDate'):
             lastused = lastUsed[1].get('AccessKeyLastUsed').get('LastUsedDate')
             old_key_use_date = lastUsed[0].get('AccessKeyLastUsed').get('LastUsedDate')
-            n = 1
+            new_key_index = 1
+            old_key_index = 0
 
         present = datetime.now()
         present = pytz.utc.localize(present)
 
         timediff = old_key_use_date - present
-        oldkeyname = (keys[1].get('AccessKeyId') if n == 0 else keys[0].get('AccessKeyId'))
+
+        oldkeyname = keys[old_key_index].get('AccessKeyId')
+        newkeyname = keys[new_key_index].get('AccessKeyId')
 
         if (timediff.seconds / 3600) < configMap['Global']['key_validate_time_check']:
-            logging.info('Old access key (%s) was used %s days and %.1f hours ago.' % (oldkeyname,str((timediff.days)).replace('-',''), timediff.seconds/3600))
+            logging.info('   Old key (%s) was last used: %s' % (oldkeyname,str(old_key_use_date)))
 
         if lastused is None:
-            logging.info("New key has not been used. Check if service is properly running or if the key is properly assigned to the service.")
+            logging.info("   New key (%s) has not been used. Check if service is properly running or if the key is properly assigned to the service." % newkeyname)
         else:
-            logging.info("New key was last used: "+lastused)
+            logging.info("   New key (%s) was last used: %s" % (newkeyname, str(lastused)))
         yes = {'yes', 'y', 'ye', ''}
         no = {'no', 'n'}
         choice = None
         while choice not in yes and choice not in no:
 
-            choice = input('Delete the old access key:'+ oldkeyname +'? (y/n) \n' ).lower()
+            choice = input('   Delete the old access key:'+ oldkeyname +'? (y/n) \n' ).lower()
             if choice in yes:
-                if n == 0:
-                    delete_old_key(client, username, keys[1].get('AccessKeyId'))
-                else:
-                    delete_old_key(client, username, keys[0].get('AccessKeyId'))
+                delete_old_key(client, username, keys[old_key_index].get('AccessKeyId'))
                 logging.info('      '+username + ': Old key deleted.')
             elif choice in no:
-                logging.info('Key was not deleted.')
+                logging.info('   Key was not deleted.')
     else:
-        logging.info('Only one key available.')
+        logging.info('   Only one key available - skipping deletion of old key.')
 
 
 def delete_iam_user(configMap, username, **key_args):
