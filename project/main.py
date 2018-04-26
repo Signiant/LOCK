@@ -111,9 +111,9 @@ def main():
         if username == 'all':
             for user_data in all_users:
                 username = (next(iter(user_data)))
-                validate_new_key(configMap, username)
+                validate_new_key(configMap, username,user_data)
         else:
-            validate_new_key(configMap, username)
+            validate_new_key(configMap, username,user_data)
 
     elif args.action == 'getnewkey':  # if you only want to
         get_new_key(configMap, username)
