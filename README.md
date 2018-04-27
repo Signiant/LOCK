@@ -9,6 +9,33 @@ A AWS key
 - Install the required libraries if needed:  pip3 install -r /path/to/requirements.txt
 - run from LOCK's root folder: python3 -m project.main -c "/path/to/config.yaml" -a rotate -u all
 
+# Docker Usage
+
+The easiest way to run the tool is from docker (because docker rocks).  You just pass it a team name and a config file and it will do everything from there
+
+```bash
+docker pull signiant/lock
+```
+
+```bash
+docker run \
+   -v /config/myconfigfile.yaml:/config.yaml \
+   signiant/lock \
+        -c /config.yaml \ 
+```
+
+In this example, we use a bindmount to mount in the config file from a local folder to the root directory of the container.  We can then pass the -c argument to the container to have it read the config from / and use the team name of team-one.
+
+There is an optional -d flag to the tool which will turn on more debug output.  For example:
+
+```bash
+docker run -ti \
+   -v /config/myconfigfile.yaml:/config.yaml \
+   signiant/lock \
+        -c /config.yaml \
+        -d
+```
+
 ## How it works
 LOCK has 4 main modes that accept the IAM user as an argument.
 
