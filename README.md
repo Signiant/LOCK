@@ -24,7 +24,7 @@ docker run \
         -c /config.yaml \ 
 ```
 
-In this example, we use a bindmount to mount in the config file from a local folder to the root directory of the container.  We can then pass the -c argument to the container to have it read the config from / and use the team name of team-one.
+In this example, we use a bindmount to mount in the config file from a local folder to the root directory of the container.  We can then pass the -c argument to the container to have it read the config from / and use the credentials from the config file.
 
 There is an optional -d flag to the tool which will turn on more debug output.  For example:
 
