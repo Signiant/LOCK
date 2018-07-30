@@ -32,13 +32,18 @@ def delete_older_key(configMap, username, client):  # Delete the key if both hav
         key1 = client.get_access_key_last_used(AccessKeyId=keyid1)
         key2 = client.get_access_key_last_used(AccessKeyId=keyid2)
 
+        deleteSpecial=False
+
         if key2.get('AccessKeyLastUsed').get('LastUsedDate') is not None and key1.get('AccessKeyLastUsed').get('LastUsedDate') is not None:
             if key2.get('AccessKeyLastUsed').get('LastUsedDate') > key1.get('AccessKeyLastUsed').get('LastUsedDate') :
-                delete_prompt(configMap, username, client, keyid1)
+                delete_prompt(configMap, username, client, keyid1, delete_special)
             elif key2.get('AccessKeyLastUsed').get('LastUsedDate') < key1.get('AccessKeyLastUsed').get('LastUsedDate'):
-                delete_prompt(configMap, username, client, keyid2)
+                delete_prompt(configMap, username, client, keyid2, delete_special)
+            else:
+                delete_special = True
+                delete_prompt(configMap, username, client, keyid2, delete_special)
 
-def delete_prompt(configMap, username,client,key):
+def delete_prompt(configMap, username,client,key, delete_special):
     list_keys(configMap, username,client)
     yes = {'yes', 'y', 'ye', ''}
     no = {'no', 'n'}
@@ -46,8 +51,10 @@ def delete_prompt(configMap, username,client,key):
     choice = None
     while choice not in yes and choice not in no:
         time.sleep(1)
-
-        choice = input('There are 2 keys. Delete the old access key: % ? (y/n) \n' % key)
+        if delete_special:
+            choice = input('There are 2 keys that were created at the same time. Delete the 2nd access key: %s ? (y/n) \n' % key)
+        else:
+            choice = input('There are 2 keys. Delete the old access key: %s ? (y/n) \n' % key)
         if choice in yes:
             delete_old_key(client, username, key)
             logging.info("      "+username + ': Old key deleted')
