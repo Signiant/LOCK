@@ -1,0 +1,14 @@
+- iam_user1:
+    plugins:
+        - iam:
+           - get_new_key:
+           - store_key_parameter_store
+        - ssh:
+           - ssh_server_command: 
+                  hostname: 'server1'
+                  user: 'dev'
+                  password: 'pw'
+                  port: 22
+                  commands: 
+                      - "sed -i '1s/.*/aws_access_key_id = <new_key_name>/' /credentials-folder/credentials"
+                      - "sed -i '2s/.*/aws_secret_access_key = <new_key_secret>/' /credentials-folder/credentials"
