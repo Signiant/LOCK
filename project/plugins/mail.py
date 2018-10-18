@@ -15,8 +15,12 @@ def mail_message(configMap, username,  **key_args):
     smtp_server = configMap['Global']['smtp']['server']
     smtp_tls = configMap['Global']['smtp']['tls']
     smtp_port = configMap['Global']['smtp']['port']
-    smtp_user = configMap['Global']['smtp']['user']
-    smtp_pass = configMap['Global']['smtp']['password']
+    smtp_user= None
+    if 'user' in configMap['Global']['smtp']:
+        smtp_user = configMap['Global']['smtp']['user']
+    smtp_pass = None
+    if 'password' in configMap['Global']['smtp']:
+        smtp_pass = configMap['Global']['smtp']['password']
     smtp_from = configMap['Global']['smtp']['from_addr']
     smtp_cc = configMap['Global']['smtp']['cc_addrs']
     if key_args.get('mail_to_cc') is not None:

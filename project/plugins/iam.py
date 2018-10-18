@@ -32,7 +32,7 @@ def delete_older_key(configMap, username, client):  # Delete the key if both hav
         key1 = client.get_access_key_last_used(AccessKeyId=keyid1)
         key2 = client.get_access_key_last_used(AccessKeyId=keyid2)
 
-        deleteSpecial=False
+        delete_special=False
 
         if key2.get('AccessKeyLastUsed').get('LastUsedDate') is not None and key1.get('AccessKeyLastUsed').get('LastUsedDate') is not None:
             if key2.get('AccessKeyLastUsed').get('LastUsedDate') > key1.get('AccessKeyLastUsed').get('LastUsedDate') :
@@ -140,7 +140,8 @@ def validate_new_key(configMap, username,user_data):
     iam_data = user_data.get(username).get('plugins')[0].get('iam')[0].get('get_new_key')
     aws_profile = None
     if iam_data:
-        aws_profile = iam_data.get('credential_profile')
+        if 'credential_profile' in iam_data:
+            aws_profile = iam_data.get('credential_profile')
     if aws_profile:
         kwargs={}
         kwargs['credential_profile']=aws_profile
