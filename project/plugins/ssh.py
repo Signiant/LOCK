@@ -1,10 +1,11 @@
 import json
 import logging
 import paramiko
+import re
 from project import values
 
 
-def SSH_server(hostname,  username, port, commands,password=None,  pkey=None, marker=None, markers=None):  # https://gist.github.com/mlafeldt/841944
+def SSH_server(hostname, username, port, commands, password=None, pkey=None, marker=None, markers=None): # https://gist.github.com/mlafeldt/841944
 
     try:
         client = paramiko.SSHClient()
@@ -18,6 +19,7 @@ def SSH_server(hostname,  username, port, commands,password=None,  pkey=None, ma
             k = paramiko.RSAKey.from_private_key_file(pkey)
             logging.info('Authenticating with public key')
             client.connect(hostname,  username=username,  pkey=k)
+
         if markers is not None: # Currently Azure only
             for i, mark in enumerate(markers):
                 path = (commands[i].split()[-1])
@@ -31,19 +33,24 @@ def SSH_server(hostname,  username, port, commands,password=None,  pkey=None, ma
                 commands[i] = commands[i].replace('<line>', str(line_num+1))
 
         if marker is not None:
-            line = "sed -n '/" + marker + "/=' " + (commands[0].split()[-1])
-            line = line.replace("\"", "")
-            stdin, stdout, stderr = client.exec_command(line)
+            get_pty = False
+            find_line_cmd = None
+            if 'sudo' in commands[0]:
+                # Needs to be run as root
+                get_pty = True
+                find_line_cmd = "echo %s | sudo -S sed -n '/%s/=' %s" % (password, marker, commands[0].split()[-1])
+            else:
+                find_line_cmd = "sed -n '/%s/=' %s" % (marker, commands[0].split()[-1])
+            find_line_cmd = find_line_cmd.replace("\"", "")
+            stdin, stdout, stderr = client.exec_command(find_line_cmd, get_pty=get_pty)
 
-            line_num = (stdout.read().decode("utf-8"))
-            try:
-                line_num = int(line_num)
-            except:
-                line_num = int([s.strip() for s in line_num.splitlines()][0])  # remove \n and return first int
+            output = (stdout.read().decode("utf-8"))
+            line_num = int(re.search(r'\d+', output).group())
 
             for i, command in enumerate(commands):
                 line_num += 1
                 commands[i] = command.replace('<line>', str(line_num))
+
         logging.info('Writing to '+hostname)
         for command in commands:
             command = command.replace("<q>", '\\"')
