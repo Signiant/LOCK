@@ -44,15 +44,17 @@ def main():
     args = parser.parse_args()
     configMap = readConfigFile(args.config)
 
+    log_level = logging.INFO
+    if args.debug:
+        print('DEBUG logging requested')
+        log_level = logging.DEBUG
+
     logFormatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
     rootLogger = logging.getLogger()
-    rootLogger.setLevel(logging.INFO)
+    rootLogger.setLevel(logging.DEBUG)
     consoleHandler = logging.StreamHandler()
+    consoleHandler.setLevel(log_level)
     consoleHandler.setFormatter(logFormatter)
-    if args.debug:
-        consoleHandler.setLevel(logging.DEBUG)
-    else:
-        consoleHandler.setLevel(logging.INFO)
     fileHandler = logging.FileHandler("lock.log")
     fileHandler.setFormatter(logFormatter)
     fileHandler.setLevel(logging.DEBUG)
@@ -60,12 +62,11 @@ def main():
     rootLogger.addHandler(consoleHandler)
 
     # args.dryRun = True
-    username=args.user
+    username = args.user
     if args.user is None:
         username = 'test_lock'  # args.user
     if args.action is None:
         args.action = 'list'  # 'instance:status'
-
 
     set_DryRun(args.dryRun)
     values.hide_key = args.hidekey
@@ -109,11 +110,12 @@ def main():
 
     elif args.action == 'validate':  # validate that new key is being used and delete the old unused key
         if username == 'all':
-            for user_data in all_users:
-                username = (next(iter(user_data)))
-                validate_new_key(configMap, username,user_data)
+            for userdata in all_users:
+                username = (next(iter(userdata)))
+                user_data = userdata.get(username)
+                validate_new_key(configMap, username, user_data)
         else:
-            validate_new_key(configMap, username,user_data)
+            validate_new_key(configMap, username, user_data)
 
     elif args.action == 'getnewkey':  # if you only want to
         get_new_key(configMap, username)

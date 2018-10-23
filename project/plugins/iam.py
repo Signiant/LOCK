@@ -134,10 +134,10 @@ def get_new_key(configMap, username,  **kwargs):
 
 
 # validate that new key is being used and delete the old unused key otherwise do nothing and advise the user
-def validate_new_key(configMap, username,user_data):
+def validate_new_key(configMap, username, user_data):
     logging.info('Validating keys for user: %s' % username)
 
-    iam_data = user_data.get(username).get('plugins')[0].get('iam')[0].get('get_new_key')
+    iam_data = user_data.get('plugins')[0].get('iam')[0].get('get_new_key')
     aws_profile = None
     if iam_data:
         if 'credential_profile' in iam_data:
