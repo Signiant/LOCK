@@ -14,13 +14,15 @@ LOCK has 4 main modes that accept an IAM user as an argument or from a YAML conf
 
 - Install Python 3.6 or higher
 - Clone this repository
-- Run  `pip3 install -r /path/to/requirements.txt` to install the dependencies
+- Run  `pip3 install -r /project/config/requirements.txt` to install the dependencies
 - Run from LOCK's root folder
 
 #
 ## Running LOCK from the Command Line
 
 To rotate keys from the command line, use `python3` to run the main script.
+the config.yaml could be retrived from another signiant devops engineer.
+The config.yaml file need to be modified before used.
 
 ```bash
 $ python3 -m main.py -c "/path/to/config.yaml" -a rotate -u all
