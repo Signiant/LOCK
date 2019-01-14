@@ -1,6 +1,7 @@
 # LOCK - Let's Occasionally Circulate Keys
 
 From Signiant Operations comes LOCK. Lock allows you to change user credentials for AWS using a Python script.
+For more detail information look into https://signiant.atlassian.net/wiki/spaces/DevOps/pages/475856909/LOCK+Guide
 
 # How It Works
 LOCK has 4 main modes that accept an IAM user as an argument or from a YAML configuration file using `-c`.
