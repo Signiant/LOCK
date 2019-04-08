@@ -3,7 +3,6 @@ import pprint
 import boto3
 import time
 from project import values
-from project.plugins.iam import get_iam_session
 
 
 def get_ec2_client(configMap, **key_args):
@@ -79,7 +78,6 @@ def terminate_instances(configMap, username,  **key_args):
 
     elb_client = get_elb_client(configMap, **key_args)
 
-
     instance_names = key_args.get('instances')
 
     for instance_name in instance_names:
@@ -124,7 +122,8 @@ def terminate_instances(configMap, username,  **key_args):
                         time.sleep(45)
     pass
 
-def get_loadbalancername(configMap,instance_name,client, **key_args):
+
+def get_loadbalancername(configMap, instance_name, client, **key_args):
 
     response = client.describe_load_balancers()
 
@@ -136,6 +135,7 @@ def get_loadbalancername(configMap,instance_name,client, **key_args):
         for tag in tags:
             if tag.get('Value') == instance_name:
                 return loadbalancer.get('LoadBalancerName')
+
 
 def _remove_instance_from_loadbalancer(elb_client, elb_name, instance_id):
     response = elb_client.deregister_instances_from_load_balancer(

@@ -17,14 +17,16 @@ def update_access_key(key):
 def set_DryRun(bool):
     values.DryRun = bool
 
-def readConfigFile(path):
+def readConfigFile(path,logging):
     configMap = []
     try:
+        logging.debug("Config file path %s" % path)
         config_file_handle = open(path)
         configMap = yaml.load(config_file_handle)
         config_file_handle.close()
-    except:
-        logging.info("Error: Unable to open config file %s or invalid Yaml" % path)
+    except Exception as e:
+        logging.error("Error: Unable to open config file %s or invalid Yaml %s" % (path,str(e)))
+        sys.exit(1)
     return configMap
 
 
@@ -42,7 +44,6 @@ def main():
     parser.add_argument('-z', '--hidekey', help='Only display access key id when creating a key', action='store_true' ,required=False)
     parser.add_argument('-e', '--debug', help='Set logging level to debug', action='store_true' ,required=False)
     args = parser.parse_args()
-    configMap = readConfigFile(args.config)
 
     log_level = logging.INFO
     if args.debug:
@@ -61,6 +62,8 @@ def main():
     rootLogger.addHandler(fileHandler)
     rootLogger.addHandler(consoleHandler)
 
+    configMap = readConfigFile(args.config,logging)
+
     # args.dryRun = True
     username = args.user
     if args.user is None:
@@ -77,6 +80,7 @@ def main():
     if args.profile is not None:
         values.profile = args.profile
 
+    logging.debug("Config file %s" % str(configMap))
     all_users = configMap['Users']
     for userdata in all_users:
         if username == (next(iter(userdata))):
@@ -89,15 +93,16 @@ def main():
     # get manually entered key, if any
     if args.key is not None:
         update_access_key(args.key)
+
     if args.action == 'list':
         key_args={}
-        client = get_iam_client(configMap, **key_args )
+        # client = get_iam_client(configMap, **key_args)
         if username == 'all':
             for user_data in all_users:
                 username = (next(iter(user_data)))
-                iam.list_keys(configMap, username, client)
+                iam.list_keys(configMap, username)
         else:
-            iam.list_keys(configMap, username, client)
+            iam.list_keys(configMap, username)
 
     elif args.action == 'rotate':  # run functions listed in the config file.
         if username == 'all':
