@@ -1,4 +1,3 @@
-import json
 import logging
 import paramiko
 import re
@@ -62,7 +61,7 @@ def SSH_server(hostname, username, port, commands, password=None, pkey=None, mar
                 logging.info('Dry run, '+hostname+'| ssh command: '+command)
             else:
                 try:
-                    # logging.info('Running command: %s' % str(command))
+                    logging.debug('Running command: %s' % str(command))
                     stdin, stdout, stderr = client.exec_command(command,  get_pty=True)
                     stdout.read()
                     error = stderr.read()

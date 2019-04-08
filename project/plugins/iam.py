@@ -1,5 +1,6 @@
 import logging
 import boto3
+from botocore.exceptions import ClientError
 import sys
 import pytz
 from project import values
@@ -12,9 +13,11 @@ logging.getLogger('botocore').setLevel(logging.CRITICAL)
 def get_iam_session():
     return boto3.Session(profile_name=values.profile)
 
+
 def get_iam_client(configMap,  **kwargs):
-    if kwargs.get('credential_profile') != None:
-        session = boto3.Session(profile_name=kwargs.get('credential_profile'))
+    if kwargs.get('credential_profile') is not None:
+        profile_name = kwargs.get('credential_profile')
+        session = boto3.Session(profile_name=profile_name)
         return session.client('iam')
     elif values.profile is not None:
         session = get_iam_session()
@@ -22,6 +25,7 @@ def get_iam_client(configMap,  **kwargs):
     else:
         return boto3.client('iam', aws_access_key_id=configMap['Global']['id'],
                                aws_secret_access_key=configMap['Global']['secret'])
+
 
 def delete_older_key(configMap, username, client):  # Delete the key if both have been used
     keys = get_access_keys(client, username)
@@ -43,8 +47,9 @@ def delete_older_key(configMap, username, client):  # Delete the key if both hav
                 delete_special = True
                 delete_prompt(configMap, username, client, keyid2, delete_special)
 
-def delete_prompt(configMap, username,client,key, delete_special):
-    list_keys(configMap, username,client)
+
+def delete_prompt(configMap, username, client, key, delete_special):
+    list_keys(configMap, username)
     yes = {'yes', 'y', 'ye', ''}
     no = {'no', 'n'}
     #  logging.info('Delete the access old key? (y/n) ' + (keys[1].get('AccessKeyId') if n == 0 else keys[0].get('AccessKeyId')))
@@ -62,6 +67,7 @@ def delete_prompt(configMap, username,client,key, delete_special):
             logging.info('      Key was not deleted.')
             sys.exit()
 
+
 def create_and_test_key(configMap, username):  # TO TEST A KEY
     client = get_iam_client(configMap)
     response = client.create_access_key(UserName=username)
@@ -77,9 +83,13 @@ def create_and_test_key(configMap, username):  # TO TEST A KEY
     print(response)
 
 
-def get_access_keys(client,username):  # list of dictionary key metadata
-    response = client.list_access_keys(UserName=username)
-    return response.get('AccessKeyMetadata')
+def get_access_keys(client, username):  # list of dictionary key metadata
+    try:
+        response = client.list_access_keys(UserName=username)
+        return response.get('AccessKeyMetadata')
+    except ClientError as e:
+        logging.error(e)
+        return None
 
 
 def delete_inactive_key(client, keys, username):
@@ -91,8 +101,7 @@ def delete_inactive_key(client, keys, username):
             logging.info('      '+username + " inactive key deleted.")
 
 
-
-def create_key(client,username):
+def create_key(client, username):
     response = client.create_access_key(UserName=username)
     return response.get('AccessKey').get('AccessKeyId'),response.get('AccessKey').get('SecretAccessKey')
 
@@ -107,12 +116,12 @@ def key_last_used(client, keyId):
     )
 
 
-def get_new_key(configMap, username,  **kwargs):
+def get_new_key(configMap, username, **kwargs):
     if values.access_key == ("", "") and values.DryRun is False:  # run only if user hasnt manually entered a key
         from project.main import update_access_key
 
         # setup connection
-        client = get_iam_client(configMap,  **kwargs)
+        client = get_iam_client(configMap, **kwargs)
 
         # get existing keys
         oldkeys = get_access_keys(client, username)
@@ -213,18 +222,20 @@ def delete_iam_user(configMap, username, **key_args):
     )
 
 
-def list_keys(configMap, username, client):
+def list_keys(configMap, username):
+    key_args = {}
+    client = get_iam_client(configMap, **key_args)
     keys = get_access_keys(client, username)
-    for key in keys:
-        response = (key_last_used(client,key.get('AccessKeyId')))
-        key["Last Used"] = response.get('AccessKeyLastUsed').get('LastUsedDate')
-        print('')
-        for i in key:
-            logging.info(i + ': ' + str(key[i]))
+    if keys is not None:
+        for key in keys:
+            response = (key_last_used(client, key.get('AccessKeyId')))
+            key["Last Used"] = response.get('AccessKeyLastUsed').get('LastUsedDate')
+            print('')
+            for i in key:
+                logging.info(i + ': ' + str(key[i]))
 
 
-def rotate_ses_smtp_user(configMap, username,  **key_args):
-
+def rotate_ses_smtp_user(configMap, username, **key_args):
     client = get_iam_client(configMap)
     if values.DryRun is True:
         logging.info('Dry run : rotate_ses_smtp_user')
@@ -295,7 +306,6 @@ def store_password_parameter_store(configMap, username,  **key_args):
 
 
 def store_key_parameter_store(configMap, username,  **key_args):
-
     client = get_ssm_client(configMap, **key_args)
     if values.DryRun is True:
         logging.info('Dry run: store_key_parameter_store')
@@ -314,6 +324,7 @@ def store_key_parameter_store(configMap, username,  **key_args):
 def update_user_password(pw):
     from project import values
     values.user_password = pw
+
 
 def get_ssm_client(configMap, **key_args):
     if values.profile is not None:

@@ -45,6 +45,7 @@ def set_param_in_region(configMap,region, parameter, value, value_is_file=False,
         sys.exit(1)
     if values.DryRun is True:
         logging.info('Dry run of put_parameter')
+        result = {}
     else:
         if description:
             if key:
@@ -80,7 +81,7 @@ def set_param_in_region(configMap,region, parameter, value, value_is_file=False,
     return return_value
 
 
-def set_paramameter(configMap,region_list, param_name, value, value_is_file=False, description=None, encrypt=False, key=None):
+def set_paramameter(configMap, region_list, param_name, value, value_is_file=False, description=None, encrypt=False, key=None):
     result = {}
     for region in region_list:
         logging.debug("Checking region: " + region)
