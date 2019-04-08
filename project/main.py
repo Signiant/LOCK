@@ -17,7 +17,8 @@ def update_access_key(key):
 def set_DryRun(bool):
     values.DryRun = bool
 
-def readConfigFile(path,logging):
+
+def readConfigFile(path):
     configMap = []
     try:
         logging.debug("Config file path %s" % path)
@@ -62,7 +63,7 @@ def main():
     rootLogger.addHandler(fileHandler)
     rootLogger.addHandler(consoleHandler)
 
-    configMap = readConfigFile(args.config,logging)
+    configMap = readConfigFile(args.config)
 
     # args.dryRun = True
     username = args.user
