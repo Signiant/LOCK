@@ -37,13 +37,14 @@ def SSH_server(hostname, username, port, commands, password=None, pkey=None, mar
             if 'sudo' in commands[0]:
                 # Needs to be run as root
                 get_pty = True
-                find_line_cmd = "echo %s | sudo -S sed -n '/%s/=' %s" % (password, marker, commands[0].split()[-1])
+                find_line_cmd = "echo '%s' | sudo -S sed -n '/%s/=' %s" % (password, marker, commands[0].split()[-1])
             else:
                 find_line_cmd = "sed -n '/%s/=' %s" % (marker, commands[0].split()[-1])
             find_line_cmd = find_line_cmd.replace("\"", "")
             stdin, stdout, stderr = client.exec_command(find_line_cmd, get_pty=get_pty)
 
             output = (stdout.read().decode("utf-8"))
+            logging.debug("Output from find_line_cmd: %s" % output)
             line_num = int(re.search(r'\d+', output).group())
 
             for i, command in enumerate(commands):

@@ -106,6 +106,7 @@ def terminate_instances(configMap, username,  **key_args):
                     checkinstancelist = list_instances(configMap, instance_name, **key_args)
                     if len(checkinstancelist) > len(growing_instance_list):
                         new_instance_id = list(set(checkinstancelist) - set(growing_instance_list))
+                        logging.info('Found newly launched instances: %s' % str(new_instance_id))
 
                         key_args['instance_id'] = new_instance_id[0]
                         instance_reachability = get_describe_instance_status(configMap, **key_args)
@@ -115,7 +116,7 @@ def terminate_instances(configMap, username,  **key_args):
                             #check load balancer
                             # logging.info('waiting 200 seconds for app to start...')
                             while not _is_instance_inService(elb_client,elb_name, new_instance_id[0]):
-                                logging.info('      Waiting for instance to be InService...')
+                                logging.info('      Waiting for instance %s to be InService...' % new_instance_id[0])
                                 time.sleep(45)
                     if not reachable:
                         logging.info('      waiting on valid status...')
