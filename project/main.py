@@ -119,9 +119,28 @@ def main():
             for userdata in all_users:
                 username = (next(iter(userdata)))
                 user_data = userdata.get(username)
-                validate_new_key(configMap, username, user_data)
+                if user_data.get('plugins'):
+                    if user_data.get('plugins')[0].get('iam'):
+                        if user_data.get('plugins')[0].get('iam')[0].get('get_new_key'):
+                            validate_new_key(configMap, username, user_data)
+                        else:
+                            logging.info('   No get_new_key section for iam plugin for user %s - skipping' % username)
+                    else:
+                        logging.info('   No iam plugin section for user %s - skipping' % username)
+                else:
+                    logging.info('   No plugins section for user %s - skipping' % username)
         else:
-            validate_new_key(configMap, username, user_data)
+            user_data = userdata.get(username)
+            if user_data.get('plugins'):
+                if user_data.get('plugins')[0].get('iam'):
+                    if user_data.get('plugins')[0].get('iam')[0].get('get_new_key'):
+                        validate_new_key(configMap, username, user_data)
+                    else:
+                        logging.info('   No get_new_key section for iam plugin for user %s - skipping' % username)
+                else:
+                    logging.info('   No iam plugin section for user %s - skipping' % username)
+            else:
+                logging.info('   No plugins section for user %s - skipping' % username)
 
     elif args.action == 'getnewkey':  # if you only want to
         get_new_key(configMap, username)
