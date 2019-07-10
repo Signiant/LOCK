@@ -121,7 +121,7 @@ def main():
                 user_data = userdata.get(username)
                 if user_data.get('plugins'):
                     if user_data.get('plugins')[0].get('iam'):
-                        if user_data.get('plugins')[0].get('iam')[0].get('get_new_key'):
+                        if 'get_new_key' in user_data.get('plugins')[0].get('iam')[0]:
                             validate_new_key(configMap, username, user_data)
                         else:
                             logging.info('   No get_new_key section for iam plugin for user %s - skipping' % username)
@@ -133,7 +133,7 @@ def main():
             user_data = userdata.get(username)
             if user_data.get('plugins'):
                 if user_data.get('plugins')[0].get('iam'):
-                    if user_data.get('plugins')[0].get('iam')[0].get('get_new_key'):
+                    if 'get_new_key' in user_data.get('plugins')[0].get('iam')[0]:
                         validate_new_key(configMap, username, user_data)
                     else:
                         logging.info('   No get_new_key section for iam plugin for user %s - skipping' % username)
