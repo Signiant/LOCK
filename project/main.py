@@ -23,7 +23,7 @@ def readConfigFile(path):
     try:
         logging.debug("Config file path %s" % path)
         config_file_handle = open(path)
-        configMap = yaml.load(config_file_handle)
+        configMap = yaml.load(config_file_handle, Loader=yaml.FullLoader)
         config_file_handle.close()
     except Exception as e:
         logging.error("Error: Unable to open config file %s or invalid Yaml %s" % (path,str(e)))
