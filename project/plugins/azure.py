@@ -7,7 +7,7 @@ from project.plugins.ssh import ssh_server_command
 
 def rotate_autoscalers_cloud(configMap, username,  **key_args):
 
-    auth = configMap['Global']['azure_credentials']
+    auth = configMap['Global']['azure_credentials'][key_args.get('account')]
 
     credentials = ServicePrincipalCredentials(
         client_id=auth.get('client_id'),
@@ -66,7 +66,7 @@ def rotate_autoscalers_cloud(configMap, username,  **key_args):
 def set_key_vault(configMap, username,  **key_args):
 
     key_vault_uri = key_args.get('vault_uri')
-    auth = configMap['Global']['azure_credentials']
+    auth = configMap['Global']['azure_credentials'][key_args.get('account')]
 
     credentials = ServicePrincipalCredentials(
         client_id=auth.get('client_id'),
