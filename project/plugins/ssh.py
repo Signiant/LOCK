@@ -6,13 +6,14 @@ from project import values
 
 def SSH_server(hostname, username, port, commands, password=None, pkey=None, marker=None, markers=None): # https://gist.github.com/mlafeldt/841944
 
+    logging.info('Attempting to connect to %s on port %s' % (hostname, str(port)))
     try:
         client = paramiko.SSHClient()
         client.load_system_host_keys()
         client.set_missing_host_key_policy(paramiko.WarningPolicy)
 
         if not pkey:
-            logging.info('Authenticating with username and password')
+            logging.info('Authenticating with username (%s) and password' % username)
             client.connect(hostname, port=port, username=username, password=password, allow_agent=False, look_for_keys=False)
         else:
             k = paramiko.RSAKey.from_private_key_file(pkey)

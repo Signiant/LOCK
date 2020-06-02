@@ -1,0 +1,6 @@
+paramiko
+azure-keyvault
+azure-mgmt-resource
+azure-identity
+azure-mgmt-common
+jenkinsapi
