@@ -181,20 +181,23 @@ def validate_new_key(configMap, username, user_data):
         logging.debug('   Present time (UTC): %s' % str(present))
         logging.debug('   Old key time (UTC): %s' % str(old_key_use_date))
 
-        timediff = present - old_key_use_date
-        timediff_hours = (timediff.days * 24) + (timediff.seconds / 3600)
-        logging.debug('   timediff: %s' % str(timediff))
-        logging.debug('   timdiff (hours): %s' % str(timediff_hours))
+        if old_key_use_date:
+            timediff = present - old_key_use_date
+            timediff_hours = (timediff.days * 24) + (timediff.seconds / 3600)
+            logging.debug('   timediff: %s' % str(timediff))
+            logging.debug('   timdiff (hours): %s' % str(timediff_hours))
 
         oldkeyname = keys[old_key_index].get('AccessKeyId')
         newkeyname = keys[new_key_index].get('AccessKeyId')
 
-        logging.info('   Old key (%s) was last used: %s' % (oldkeyname,str(old_key_use_date)))
+        if old_key_use_date:
+            logging.info('   Old key (%s) was last used: %s' % (oldkeyname,str(old_key_use_date)))
+            logging.debug('   Time diff in hours: %s' % str(timediff_hours))
 
-        logging.debug('   Time diff in hours: %s' % str(timediff_hours))
-
-        if timediff_hours < configMap['Global']['key_validate_time_check']:
-            logging.warning('      Old key was used less than %s hours ago' % (str(configMap['Global']['key_validate_time_check'])))
+            if timediff_hours < configMap['Global']['key_validate_time_check']:
+                logging.warning('      Old key was used less than %s hours ago' % (str(configMap['Global']['key_validate_time_check'])))
+        else:
+            logging.warning("   Old key (%s) has not been used. Is it still needed?" % oldkeyname)
 
         if lastused is None:
             logging.info("   New key (%s) has not been used. Check if service is properly running or if the key is properly assigned to the service." % newkeyname)
