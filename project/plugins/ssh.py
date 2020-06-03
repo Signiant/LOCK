@@ -3,6 +3,8 @@ import paramiko
 import re
 from project import values
 
+logging.getLogger('paramiko').setLevel(logging.CRITICAL)
+
 
 def SSH_server(hostname, username, port, commands, password=None, pkey=None, marker=None, markers=None): # https://gist.github.com/mlafeldt/841944
 
