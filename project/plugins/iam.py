@@ -36,7 +36,7 @@ def delete_older_key(configMap, username, client):  # Delete the key if both hav
         key1 = client.get_access_key_last_used(AccessKeyId=keyid1)
         key2 = client.get_access_key_last_used(AccessKeyId=keyid2)
 
-        delete_special=False
+        delete_special = False
 
         if key2.get('AccessKeyLastUsed').get('LastUsedDate') is not None and key1.get('AccessKeyLastUsed').get('LastUsedDate') is not None:
             if key2.get('AccessKeyLastUsed').get('LastUsedDate') > key1.get('AccessKeyLastUsed').get('LastUsedDate') :
@@ -96,9 +96,11 @@ def delete_inactive_key(client, keys, username):
     for key in keys:
         response = key_last_used(client, key.get('AccessKeyId'))
         date = response.get('AccessKeyLastUsed').get('LastUsedDate')
-        if (date is None) or (key.get('Status') == 'Inactive'):
+        if key.get('Status') == 'Inactive':
             client.delete_access_key(UserName=username, AccessKeyId=key.get('AccessKeyId'))
-            logging.info('      '+username + " inactive key deleted.")
+            logging.info('  inactive key (%s) deleted' % key.get('AccessKeyId'))
+        if date is None and key.get('Status') != 'Inactive':
+            logging.warning('There appears to be a key (%s) that is not being used' % key.get('AccessKeyId'))
 
 
 def create_key(client, username):
@@ -117,17 +119,15 @@ def key_last_used(client, keyId):
 
 
 def get_new_key(configMap, username, **kwargs):
-    if values.access_key == ("", "") and values.DryRun is False:  # run only if user hasnt manually entered a key
+    if values.access_key == ("", "") and values.DryRun is False:  # run only if user hasn't manually entered a key
         from project.main import update_access_key
-
         # setup connection
         client = get_iam_client(configMap, **kwargs)
-
         # get existing keys
-        oldkeys = get_access_keys(client, username)
-
-        # delete 'inactive' keys and keys that have never been used (if any)
-        delete_inactive_key(client, oldkeys, username)
+        existing_keys = get_access_keys(client, username)
+        # delete 'inactive' keys (and warn about unused active keys)
+        delete_inactive_key(client, existing_keys, username)
+        # delete keys that have never been used (if any)
         delete_older_key(configMap, username, client)
         # create a new key
         new_key = create_key(client, username)

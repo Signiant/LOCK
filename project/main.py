@@ -7,7 +7,6 @@ import sys
 import yaml
 from project.plugins import iam
 from project.plugins.iam import validate_new_key, get_new_key, create_and_test_key, delete_older_key, get_iam_client
-from project.plugins.ec2 import list_instances, get_instance_status,  terminate_instance_id
 from project import values
 
 
@@ -40,10 +39,10 @@ def main():
     parser.add_argument('-a', '--action', help='Select the action to run: keys, rotate, validate', required=False)
     parser.add_argument('-k', '--key', help='Manually enter new key by skipping get_new_key method', required=False)
     parser.add_argument('-i', '--instance', help='The instance to act on.',required=False)
-    parser.add_argument('-d', '--dryRun', help='Run without creating keys or updating keys', action='store_true' ,required=False)
-    parser.add_argument('-p', '--profile', help='The name of the AWS credential profile',required=False)
-    parser.add_argument('-z', '--hidekey', help='Only display access key id when creating a key', action='store_true' ,required=False)
-    parser.add_argument('-e', '--debug', help='Set logging level to debug', action='store_true' ,required=False)
+    parser.add_argument('-d', '--dryRun', help='Run without creating keys or updating keys', action='store_true', required=False)
+    parser.add_argument('-p', '--profile', help='The name of the AWS credential profile', required=False)
+    parser.add_argument('-z', '--hidekey', help='Only display access key id when creating a key', action='store_true', required=False)
+    parser.add_argument('-e', '--debug', help='Set logging level to debug', action='store_true', required=False)
     args = parser.parse_args()
 
     log_level = logging.INFO
@@ -142,27 +141,6 @@ def main():
             else:
                 logging.info('   No plugins section for user %s - skipping' % username)
 
-    elif args.action == 'getnewkey':  # if you only want to
-        get_new_key(configMap, username)
-
-    elif args.action == 'instance:ids':
-        instances = user_data['instances']
-        list_instances(configMap, instances)
-
-    elif args.action == 'instance:terminate':
-        if args.instance is not None:
-            key_args = {'instance_id': args.instance}
-            terminate_instance_id(configMap, **key_args)
-        else:
-            logging.info("Provide an instance id. '-i x'")
-
-    elif args.action == 'instance:status':
-        if args.instance is not None:
-            key_args = {'instance_id': args.instance}
-            get_instance_status(configMap, **key_args)
-        else:
-            logging.info("Provide an instance id. '-i x' ")
-
     print("")
 
 
@@ -178,7 +156,8 @@ def rotate_update(configMap, user_data, username):
                 key_args = {}
             method_to_call = getattr(my_plugin, list(method.keys())[0])  # get method name to run
             logging.info("Running "+str(method_to_call)[:-15] + "for " + username)
-            method_to_call(configMap, username, **key_args)
+            result = method_to_call(configMap, username, **key_args)
+            # TODO: Check result and abort remaining methods if one fails
 
 
 if __name__ == "__main__":
