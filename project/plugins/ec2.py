@@ -31,11 +31,8 @@ def get_elb_client(configMap, **key_args):
                                 aws_secret_access_key=configMap['Global']['secret'])
 
 
-def list_instances(configMap, instance_name,  **key_args):
-
-    client = get_ec2_client(configMap, **key_args)
+def list_instances(client, instance_name):
     instance_IDs = []
-
     response = client.describe_instances()
     for instance in response.get('Reservations'):
         if instance.get('Instances')[0].get('State').get('Name') == 'running':
@@ -53,78 +50,84 @@ def list_instances(configMap, instance_name,  **key_args):
     return instance_IDs
 
 
-def terminate_instance_id(configMap, **key_args):
-
-    client = get_ec2_client(configMap, **key_args)
-    response = client.terminate_instances(InstanceIds=[key_args.get('instance_id')],)
-    logging.info('      '+key_args.get('instance_id')+ " instance terminated")
+def terminate_instance_id(client, instance_id):
+    response = client.terminate_instances(InstanceIds=[instance_id],)
+    logging.info('       %s instance terminating' % instance_id)
 
 
-def get_instance_status(configMap, **key_args):
-
-    client = get_ec2_client(configMap, **key_args)
-    response = client.describe_instances(InstanceIds=[key_args.get('instance_id')])
+def get_instance_status(client, instance_id):
+    response = client.describe_instances(InstanceIds=[instance_id])
     pprint.pprint(response.get('Reservations')[0].get('Instances'))
 
 
-def get_describe_instance_status(configMap, tg_arn, **key_args):
-
-    client = get_ec2_client(configMap, **key_args)
-    response = client.describe_instance_status(InstanceIds=[key_args.get('instance_id')])
+def get_describe_instance_status(client, instance_id):
+    response = client.describe_instance_status(InstanceIds=[instance_id])
     return(response.get('InstanceStatuses')[0].get('InstanceStatus').get('Details')[0].get('Status'))
 
 
 def terminate_instances(configMap, username,  **key_args):
 
     elb_client = get_elb_client(configMap, **key_args)
+    ec2_client = get_ec2_client(configMap, **key_args)
 
     instance_names = key_args.get('instances')
 
     for instance_name in instance_names:
-        logging.info('  Terminating instance for %s' % instance_name)
-        tg_arn = get_target_group_arn(configMap, instance_name, elb_client, **key_args)
-        instances = list_instances(configMap, instance_name,  **key_args)
+        logging.info('  Terminating instances for %s' % instance_name)
+        tg_arn = get_target_group_arn(elb_client, instance_name)
+        instances = list_instances(ec2_client, instance_name)
+        logging.info('    Found following instances: %s' % str(instances))
         growing_instance_list = instances  # list grows as more instances are terminated and new ones are generated
-        for instanceid in instances:
+        new_instances = []
+        for instance_id in instances:
             reachable = False
-            key_args['instance_id'] = instanceid
 
             if values.DryRun is True:
-                logging.info('Dry run instance:'+instance_name + " " + instanceid)
+                logging.info('Dry run instance: %s %s' %(instance_name, instance_id))
             else:
                 # Remove instance from loadbalancer
-                logging.info('    Removing %s from Targetgroup' % instanceid)
-                if not _remove_instance_from_targetgroup(elb_client, tg_arn, instanceid):
-                    logging.warning('Failed to remove instance from target group')
+                logging.info('    Removing %s from Targetgroup' % instance_id)
+                if not _remove_instance_from_targetgroup(elb_client, tg_arn, instance_id):
+                    logging.warning('      Failed to remove instance from target group')
                 else:
-                    logging.info('      Successfully removed %s from Targetgroup - pausing for 60 seconds' % instanceid)
+                    logging.info('      Successfully removed %s from Targetgroup - pausing for 60 seconds' % instance_id)
                 # Pause for 60 seconds while connections drain on the instance
                 time.sleep(60)
-                logging.info('    Terminating instance %s' % instanceid)
-                terminate_instance_id(configMap, **key_args)
-                while(reachable==False):
-                    checkinstancelist = list_instances(configMap, instance_name, **key_args)
-                    print(len(checkinstancelist), len(growing_instance_list))
+                logging.info('    Terminating instance %s' % instance_id)
+                terminate_instance_id(ec2_client, instance_id)
+                while not reachable:
+                    checkinstancelist = list_instances(ec2_client, instance_name)
+                    # print(len(checkinstancelist), len(growing_instance_list))
                     if len(checkinstancelist) > 0:
-                        new_instance_id = list(set(checkinstancelist))
-                        logging.info('Found newly launched instances: %s' % str(new_instance_id))
+                        new_instance_ids = list(set(checkinstancelist))
+                        for inst in new_instance_ids:
+                            if inst not in new_instances and inst not in instances:
+                                new_instances.append(inst)
+                                logging.info('    Found newly launched instance: %s' % inst)
 
-                        key_args['instance_id'] = new_instance_id[0]
-
-                        instance_reachability = get_describe_instance_status(configMap, tg_arn, **key_args)
-                        print(instance_reachability)
-                        if instance_reachability == "passed":
-                            reachable = True
-                            growing_instance_list = checkinstancelist
-                            #check load balancer
-                            # logging.info('waiting 200 seconds for app to start...')
-                            while not _is_instance_inService(elb_client, tg_arn, new_instance_id[0]):
-                                logging.info('      Waiting for instance %s to be InService...' % new_instance_id[0])
-                                time.sleep(45)
+                        for new_inst in new_instances:
+                            instance_reachability = get_describe_instance_status(ec2_client, new_inst)
+                            # print(instance_reachability)
+                            if instance_reachability == "passed":
+                                reachable = True
+                                growing_instance_list = checkinstancelist
+                                # check load balancer
+                                # logging.info('waiting 200 seconds for app to start...')
+                                if not _is_instance_inService(elb_client, tg_arn, new_inst):
+                                    logging.info('      Waiting for instance %s to be InService...' % new_inst)
+                                    time.sleep(45)
+                                    while not _is_instance_inService(elb_client, tg_arn, new_inst):
+                                        logging.info('      Waiting for instance %s to be InService...' % new_inst)
+                                        time.sleep(45)
+                                else:
+                                    logging.info('      New instance %s is InService - move on' % new_inst)
                     if not reachable:
-                        logging.info('      waiting on valid status...')
+                        if len(new_instances) < 1:
+                            logging.info('    Waiting for newly launched instance(s)...')
+                        else:
+                            logging.info('      Waiting for newly launched instance to pass status checks...')
                         time.sleep(45)
-    pass
+    # pass
 
 
 def get_loadbalancername(configMap, instance_name, client, **key_args):
@@ -141,8 +144,7 @@ def get_loadbalancername(configMap, instance_name, client, **key_args):
                 return loadbalancer.get('LoadBalancerName')
 
 
-def get_target_group_arn(configMap, instance_name, client, **key_args):
-
+def get_target_group_arn(client, instance_name):
     response = client.describe_load_balancers()
     list_loadbalancers = response.get('LoadBalancers')
     for loadbalancer in list_loadbalancers:
