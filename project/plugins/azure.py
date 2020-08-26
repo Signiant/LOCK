@@ -25,7 +25,7 @@ def rotate_autoscalers_cloud(configMap, username,  **key_args):
             region = key
             for resource_group in item.get(region):
                 resource_group_name = resource_group
-                sub_id = item.get(region).get(sub)
+                sub_id = item.get(region).get(resource_group)
                 client = ResourceManagementClient(credentials, sub_id)
                 resource_groups = client.resources.list_by_resource_group(resource_group_name)
                 for rg in resource_groups:
