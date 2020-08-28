@@ -18,23 +18,17 @@ logging.getLogger('googleapiclient.discovery_cache').setLevel(logging.CRITICAL)
 
 def set_secret_manager(configMap, username,  **key_args):
     auth = configMap['Global']['google_credentials']['client_cred']
-
     # Create the Secret Manager client.
     try:
         client = secretmanager.SecretManagerServiceClient.from_service_account_json(auth)
     except Exception as e:
         logging.error("Error: {0}".format(e))
         return
-
-
-    # Convert the string payload into a bytes. This step can be omitted if you
-    # pass in bytes instead of a str for the payload argument.
     
     from project import values
     if values.DryRun is True:
         logging.info('Dry run ')
     else:
-
         # Build the resource name of the parent secret.
         try: 
             parent_access = client.secret_path(key_args.get('project_id'), key_args.get('key_name'))
