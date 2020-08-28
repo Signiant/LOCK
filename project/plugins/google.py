@@ -79,18 +79,13 @@ def rotate_instance_groups(configMap, username,  **key_args):
         return
     logging.debug("Authorized")
     regions = key_args.get('regions')
-    for region in regions:
-        if region == "stage":
-            region = "us-east4"
-            project = "fv1-stage-us-east4"
-            instance_group = "flight-v1-stage-rigm"
-            max_unavailable=1
-        else:
-            project = "fv1-prod-" + region
-            instance_group = "flight-v1-prod-rigm"
-            max_unavailable=2
-
-        #retrieve instance template in use
+    for item in regions:
+        region = list(item)[0]
+        project = item[region]['project']
+        instance_group = item[region]['instance_group']
+        logging.debug("Project: {0} Instance_group {1} Region {2}".format(project, instance_group, region))
+        
+        #retrieve instance template in use from project (this case is 1 regional instance manager in project)
         try:
             project_list = compute.regionInstanceGroupManagers().list(
                 project=project,
@@ -111,7 +106,7 @@ def rotate_instance_groups(configMap, username,  **key_args):
                     "fixed": 0
                 },
                 "maxUnavailable": { 
-                    "fixed": max_unavailable
+                    "fixed": 2
                 },
                 "minReadySec": 300,
                 "replacementMethod": "recreate"
