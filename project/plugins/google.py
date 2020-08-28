@@ -7,7 +7,6 @@ import httplib2
 import pprint
 import time
 import sys
-import googleapiclient
 from google.oauth2 import service_account
 from google.cloud import secretmanager
 from datetime import datetime
@@ -84,7 +83,7 @@ def rotate_instance_groups(configMap, username,  **key_args):
         project = item[region]['project']
         instance_group = item[region]['instance_group']
         logging.debug("Project: {0} Instance_group {1} Region {2}".format(project, instance_group, region))
-        
+
         #retrieve instance template in use from project (this case is 1 regional instance manager in project)
         try:
             project_list = compute.regionInstanceGroupManagers().list(
