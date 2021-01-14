@@ -291,7 +291,7 @@ def hash_smtp_pass_from_secret_key(secretkey):
 
 
 def store_password_parameter_store(configMap, username,  **key_args):
-    client = get_ssm_client(configMap)
+    client = get_ssm_client(configMap, **key_args)
 
     # NOTE that this is the user/password, the secret key is NOT a regular secret key, while username is the Accesskey
     if values.DryRun is True:
@@ -313,15 +313,63 @@ def store_key_parameter_store(configMap, username,  **key_args):
     if values.DryRun is True:
         logging.info('Dry run: store_key_parameter_store')
     else:
-        client.put_parameter(
-            Name='LOCK.'+username.upper(),
+        if key_args.get('param_name') is not None:
+            parameter_name = key_args.get('param_name')
+        else:
+            parameter_name = 'LOCK.'+username.upper()
+        if key_args.get('value') is not None:
+            # value defined by user as seen under mediashuttle-support-tool user in conig.yaml
+            parameter_value = key_args.get('value').replace("<new_key_name>", values.access_key[0]).replace("<new_key_secret>",values.access_key[1])
+        else:
+            # Key ID: XXXXXX Secret Key: XXXX
+            parameter_value = 'Key Id: ' + values.access_key[0]+' Secret Key: '+values.access_key[1]
+        if key_args.get('key') is not None:
+            key_id = key_args.get('key')
+        else:
+            key_id = configMap['Global']['parameter_store']['KeyId']
+        response = client.put_parameter(
+            Name=parameter_name,
             Description='modified by LOCK',  # config desc
-            Value='Key Id: ' + values.access_key[0]+' Secret Key: '+values.access_key[1],  # Key ID: XXXXXX Secret Key: XXXX
+            Value=parameter_value,
             Type='SecureString',
-            KeyId=configMap['Global']['parameter_store']['KeyId'],
+            KeyId=key_id,
             Overwrite=True
         )
-        logging.info('      '+username+' key written to parameter store.')
+        print(parameter_name)
+        print(response)
+        logging.info('      '+parameter_name+' key written to parameter store.')
+        param_list = client.describe_parameters(ParameterFilters=[{'Key':'Name','Values':['SIGNIANT.mediashuttle_support_tools']}])
+        print(param_list)
+
+
+def ecs_task_restart(configMap, username,  **key_args):
+    """
+    restart all tasks in a service by finding the service and restart it's tasks
+    :param configMap:
+    :param username:
+    :param key_args:
+    :return:
+    """
+    client = get_ecs_client(configMap, **key_args)
+    if values.DryRun is True:
+        logging.info('Dry run: ecs_task_restart')
+    else:
+        if key_args.get('cluster') is not None:
+            cluster_name = key_args.get('cluster')
+        else:
+            logging.info('ecs restart failed. cluster not defined')
+        if key_args.get('service_wildcard') is not None:
+            service_wildcard = key_args.get('service_wildcard')
+        else:
+            logging.info('ecs restart failed. service_wildcard not defined')
+        service_list  = client.list_services(cluster=cluster_name)['serviceArns']
+
+        for service in service_list:
+            if service_wildcard in service:
+                service_name = service
+        print("restart service task for service {0}".format(service_name))
+        client.update_service(cluster=cluster_name,service=service_name,forceNewDeployment=True)
+        logging.info("All tasks for service {0} restarted".format(service_name))
 
 
 def update_user_password(pw):
@@ -330,9 +378,35 @@ def update_user_password(pw):
 
 
 def get_ssm_client(configMap, **key_args):
-    if values.profile is not None:
-        session = get_iam_session()
+    if key_args.get('region') is not None:
+        region_name = key_args.get('region')
+    else:
+        region_name = 'us-east-1'
+    if key_args.get('credential_profile') is not None:
+        profile_name = key_args.get('credential_profile')
+        print(profile_name)
+        session = boto3.Session(profile_name=profile_name, region_name=region_name)
         return session.client('ssm')
+    elif values.profile is not None:
+        session = get_iam_session()
+        return session.client('ssm',region_name=region_name)
     else:
         return boto3.client('ssm', aws_access_key_id=configMap['Global']['id'],
-                               aws_secret_access_key=configMap['Global']['secret'])
+                               aws_secret_access_key=configMap['Global']['secret'],region_name=region_name)
+
+def get_ecs_client(configMap, **key_args):
+    if key_args.get('region') is not None:
+        region_name = key_args.get('region')
+    else:
+        region_name = 'us-east-1'
+    if key_args.get('credential_profile') is not None:
+        profile_name = key_args.get('credential_profile')
+        print(profile_name)
+        session = boto3.Session(profile_name=profile_name, region_name=region_name)
+        return session.client('ecs')
+    elif values.profile is not None:
+        session = get_iam_session()
+        return session.client('ecs',region_name=region_name)
+    else:
+        return boto3.client('ecs', aws_access_key_id=configMap['Global']['id'],
+                               aws_secret_access_key=configMap['Global']['secret'],region_name=region_name)
