@@ -313,10 +313,7 @@ def store_key_parameter_store(configMap, username,  **key_args):
     if values.DryRun is True:
         logging.info('Dry run: store_key_parameter_store')
     else:
-        if key_args.get('param_name') is not None:
-            parameter_name = key_args.get('param_name')
-        else:
-            parameter_name = 'LOCK.'+username.upper()
+        parameter_name = key_args.get('param_name', 'LOCK.'+username.upper())
         if key_args.get('value') is not None:
             # value defined by user as seen under mediashuttle-support-tool user in conig.yaml
             parameter_value = key_args.get('value').replace("<new_key_name>", values.access_key[0]).replace("<new_key_secret>",values.access_key[1])
@@ -378,10 +375,9 @@ def update_user_password(pw):
 
 
 def get_ssm_client(configMap, **key_args):
-    if key_args.get('region') is not None:
-        region_name = key_args.get('region')
-    else:
-        region_name = 'us-east-1'
+
+    region_name = key_args.get('region','us-east-1')
+
     if key_args.get('credential_profile') is not None:
         profile_name = key_args.get('credential_profile')
         print(profile_name)
@@ -395,10 +391,9 @@ def get_ssm_client(configMap, **key_args):
                                aws_secret_access_key=configMap['Global']['secret'],region_name=region_name)
 
 def get_ecs_client(configMap, **key_args):
-    if key_args.get('region') is not None:
-        region_name = key_args.get('region')
-    else:
-        region_name = 'us-east-1'
+
+    region_name = key_args.get('region','us-east-1')
+
     if key_args.get('credential_profile') is not None:
         profile_name = key_args.get('credential_profile')
         print(profile_name)
