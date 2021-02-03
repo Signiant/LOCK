@@ -13,6 +13,7 @@ from project import values
 def update_access_key(key):
     values.access_key = key
 
+
 def set_DryRun(bool):
     values.DryRun = bool
 
@@ -145,7 +146,7 @@ def main():
 
 
 def rotate_update(configMap, user_data, username):
-    update_access_key(('',''))
+    update_access_key(('', ''))
     modules = user_data['plugins']
     for plugin in modules:
         my_plugin = importlib.import_module('project.plugins.' + list(plugin.keys())[0])
