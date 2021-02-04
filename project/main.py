@@ -26,7 +26,7 @@ def readConfigFile(path):
         configMap = yaml.load(config_file_handle, Loader=yaml.FullLoader)
         config_file_handle.close()
     except Exception as e:
-        logging.error("Error: Unable to open config file %s or invalid Yaml %s" % (path,str(e)))
+        logging.error("Error: Unable to open config file %s or invalid Yaml %s" % (path, str(e)))
         sys.exit(1)
     return configMap
 
@@ -39,7 +39,7 @@ def main():
     parser.add_argument('-c', '--config', help='Full path to a config file', required=True)
     parser.add_argument('-a', '--action', help='Select the action to run: keys, rotate, validate', required=False)
     parser.add_argument('-k', '--key', help='Manually enter new key by skipping get_new_key method', required=False)
-    parser.add_argument('-i', '--instance', help='The instance to act on.',required=False)
+    parser.add_argument('-i', '--instance', help='The instance to act on.', required=False)
     parser.add_argument('-d', '--dryRun', help='Run without creating keys or updating keys', action='store_true', required=False)
     parser.add_argument('-p', '--profile', help='The name of the AWS credential profile', required=False)
     parser.add_argument('-z', '--hidekey', help='Only display access key id when creating a key', action='store_true', required=False)
