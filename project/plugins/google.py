@@ -4,22 +4,17 @@ command line application and sample code for accessing a secret version.
 
 import logging
 import os
-import httplib2
-import pprint
 import time
-import base64
-import sys
-from google.oauth2 import service_account
-from google.cloud import secretmanager
-from google.cloud import kms_v1
-from google.cloud import storage
 from datetime import datetime
+
+from google.cloud import kms_v1, secretmanager, storage
+from google.oauth2 import service_account
 from googleapiclient.discovery import build
-from oauth2client.service_account import ServiceAccountCredentials
 
 from project import values
 
 logging.getLogger('googleapiclient.discovery_cache').setLevel(logging.CRITICAL)
+
 
 def set_secret_manager(configMap, username,  **key_args):
     auth = configMap['Global']['google_credentials']['client_cred']
@@ -29,7 +24,6 @@ def set_secret_manager(configMap, username,  **key_args):
     except Exception as e:
         logging.error("Error: {0}".format(e))
         return
-    
 
     if values.DryRun is True:
         logging.info('Dry run ')
@@ -91,7 +85,7 @@ def rotate_fg_instance_groups(configMap, username,  **key_args):
 
 def rotate_gcp_instance_group(auth, regions, max_unavailable):
     credentials = service_account.Credentials.from_service_account_file(auth)
-    #authenticate with compute api
+    # authenticate with compute api
     try:
         compute = build('compute', 'v1', credentials=credentials)
     except Exception as e:
@@ -101,10 +95,17 @@ def rotate_gcp_instance_group(auth, regions, max_unavailable):
     for item in regions:
         region = list(item)[0]
         project = item[region]['project']
-        instance_group = item[region]['instance_group']
+
+        # Get the instance group - assuming only one group per region
+        try:
+            instance_group_list = compute.regionInstanceGroups().list(project=project, region=region).execute()
+            instance_group = instance_group_list['items'][0]['name']
+        except Exception as e:
+            logging.error("     ***** Unable to retrieve intsance group: {0}".format(e))
+            return
         logging.debug("Project: {0} Instance_group {1} Region {2}".format(project, instance_group, region))
 
-        #retrieve instance template in use from project (this case is 1 regional instance manager in project)
+        # retrieve instance template in use from project (this case is 1 regional instance manager in project)
         try:
             project_list = compute.regionInstanceGroupManagers().list(
                 project=project,
@@ -114,9 +115,9 @@ def rotate_gcp_instance_group(auth, regions, max_unavailable):
             logging.error("     ***** Unable to retrieve current instance template: {0}".format(e))
             return 
         logging.debug("template: {0}".format(project_list['items'][0]['versions'][0]['instanceTemplate']))
-        #set version to current datetime
+        # set version to current datetime
         version = str(datetime.now())
-        #create body for patch update
+        # create body for patch update
         body = {   
             "updatePolicy": {
                 "minimalAction": "REPLACE",
@@ -137,7 +138,7 @@ def rotate_gcp_instance_group(auth, regions, max_unavailable):
                 }
             ]
         }
-        #run rolling update to get new keys
+        # run rolling update to get new keys
         try:
             operation = compute.regionInstanceGroupManagers().patch(
                 project=project,

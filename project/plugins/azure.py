@@ -2,7 +2,6 @@ import logging
 from azure.keyvault.secrets import SecretClient
 from azure.mgmt.resource import ResourceManagementClient
 from azure.identity import ClientSecretCredential
-from azure.common.credentials import ServicePrincipalCredentials
 from project.plugins.ssh import ssh_server_command
 
 logging.getLogger('azure.keyvault.secrets').setLevel(logging.CRITICAL)
@@ -14,9 +13,7 @@ logging.getLogger('azure.common.credentials').setLevel(logging.CRITICAL)
 def rotate_autoscalers_cloud(configMap, username,  **key_args):
 
     auth = configMap['Global']['azure_credentials'][key_args.get('account')]
-    credentials = ServicePrincipalCredentials(tenant=auth.get('tenant'),
-                                              client_id=auth.get('client_id'),
-                                              secret=auth.get('secret'))
+    credentials = ClientSecretCredential(auth.get('tenant'), auth.get('client_id'), auth.get('secret'))
     subscriptions = key_args.get('resource_group_subscriptionid')
 
     for item in subscriptions:
@@ -32,13 +29,13 @@ def rotate_autoscalers_cloud(configMap, username,  **key_args):
                     if rg.type == 'Microsoft.Compute/virtualMachines':
                         to_rotate.append(rg.name)
 
-        #Build dns names
-        for vm in to_rotate: # rotate key for server type
+        # Build dns names
+        for vm in to_rotate:  # rotate key for server type
             markers = []
             commands = []
             if 'autoscaler' in vm:
                 for host in key_args.get('autoscalers'):
-                    r=region.replace('-', '')
+                    r = region.replace('-', '')
                     if r in host:
                         key_args['hostname']=host
                 logging.info('      Writing key to '+key_args['hostname'])
@@ -52,7 +49,7 @@ def rotate_autoscalers_cloud(configMap, username,  **key_args):
                 key_args['commands'] = commands
                 key_args['markers'] = markers
                 ssh_server_command(configMap, username, **key_args)
-            else: # its a flight server
+            else:  # its a flight server
                 key_args['hostname'] = key_args.get('f_host').replace('<SERVER>', vm).replace('<REGION>', region.replace('-', ''))
                 logging.info('      Writing key to '+key_args['hostname'])
                 for pkey in key_args.get('pkeys'):
