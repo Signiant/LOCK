@@ -38,6 +38,8 @@ def rotate_autoscalers_cloud(configMap, username,  **key_args):
                                                                          expand='instanceView')
                             if 'running' in result.instance_view.statuses[1].display_status:
                                 to_rotate.append(rg.name)
+                            else:
+                                logging.warning(f'{rg.name} Not in RUNNING state - skipping')
                         except msrestazure.azure_exceptions.CloudError as e:
                             if 'not found' in e.message:
                                 logging.warning(f'{rg.name} Not Found - skipping')
