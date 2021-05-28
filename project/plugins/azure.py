@@ -4,8 +4,11 @@ from azure.mgmt.compute import ComputeManagementClient
 from azure.keyvault.secrets import SecretClient
 from azure.mgmt.resource import ResourceManagementClient
 from azure.identity import ClientSecretCredential
+from azure.devops.connection import Connection
+from msrest.authentication import BasicAuthentication
 from project.plugins.azure_identity_credential_adapter import AzureIdentityCredentialAdapter
 from project.plugins.ssh import ssh_server_command
+from project import values
 
 logging.getLogger('azure.keyvault.secrets').setLevel(logging.CRITICAL)
 logging.getLogger('azure.mgmt.resource.resources').setLevel(logging.CRITICAL)
@@ -90,7 +93,6 @@ def set_key_vault(configMap, username,  **key_args):
 
     client = SecretClient(vault_url=key_vault_uri, credential=credential, logging_enable=False)
 
-    from project import values
     if values.DryRun is True:
         logging.info('Dry run ')
     else:
@@ -98,3 +100,34 @@ def set_key_vault(configMap, username,  **key_args):
         client.set_secret(key_args.get('key_secret'), values.access_key[1], logging_enable=False)
         logging.info("      Access key and Secret key written to key vault")
         pass
+
+
+def update_pipeline_service_connection(configMap, username,  **key_args):
+    personal_access_token = configMap['Global']['azure_credentials']['personal_access_token']
+    organization_url = key_args.get('devops_organization_url')
+    projects = key_args.get('projects')
+
+    # Create a connection to the org
+    credentials = BasicAuthentication('', personal_access_token)
+    connection = Connection(base_url=organization_url, creds=credentials)
+    # Get a service endpoint client
+    service_endpoint_client = connection.clients_v6_0.get_service_endpoint_client()
+
+    for project in projects:
+        for endpoint in projects[project]:
+            service_endpoints_details = service_endpoint_client.get_service_endpoint_details(project=project,
+                                                                                             endpoint_id=endpoint)
+
+            if service_endpoints_details:
+                logging.info(f'Retrieved endpoint details for {service_endpoints_details.name}')
+                new_service_endpoint = service_endpoints_details
+                if values.DryRun is True:
+                    logging.info('Dry run ')
+                else:
+                    # Update the ACCESS Key and Secret
+                    new_service_endpoint.authorization.parameters['username'] = values.access_key[0]
+                    new_service_endpoint.authorization.parameters['password'] = values.access_key[1]
+                    # Now update the service endpoint
+                    logging.info(f'Attempting to update credentials for {new_service_endpoint.name}')
+                    service_endpoint_client.update_service_endpoint(new_service_endpoint, endpoint)
+                    logging.info(f"      Service Connection {new_service_endpoint.name} Updated")
