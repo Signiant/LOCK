@@ -49,11 +49,13 @@ def SSH_server(hostname, username, port, commands, password=None, pkey=None, mar
 
             output = (stdout.read().decode("utf-8"))
             logging.debug("Output from find_line_cmd: %s" % output)
-            line_num = int(re.search(r'\d+', output).group())
+            lines = re.search(r'\d+', output)
+            if lines:
+                line_num = int(lines.group())
 
-            for i, command in enumerate(commands):
-                line_num += 1
-                commands[i] = command.replace('<line>', str(line_num))
+                for i, command in enumerate(commands):
+                    line_num += 1
+                    commands[i] = command.replace('<line>', str(line_num))
 
         logging.info('Writing to '+hostname)
         for command in commands:
