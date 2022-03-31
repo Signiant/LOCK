@@ -6,7 +6,6 @@ from azure.mgmt.resource import ResourceManagementClient
 from azure.identity import ClientSecretCredential
 from azure.devops.connection import Connection
 from msrest.authentication import BasicAuthentication
-from project.plugins.azure_identity_credential_adapter import AzureIdentityCredentialAdapter
 from project.plugins.ssh import ssh_server_command
 from project import values
 
@@ -20,7 +19,6 @@ def rotate_autoscalers_cloud(configMap, username,  **key_args):
 
     auth = configMap['Global']['azure_credentials'][key_args.get('account')]
     credentials = ClientSecretCredential(auth.get('tenant'), auth.get('client_id'), auth.get('secret'))
-    wrapped_credential = AzureIdentityCredentialAdapter(credentials)
     subscriptions = key_args.get('resource_group_subscriptionid')
 
     for item in subscriptions:
@@ -30,7 +28,7 @@ def rotate_autoscalers_cloud(configMap, username,  **key_args):
             for resource_group in item.get(region):
                 resource_group_name = resource_group
                 sub_id = item.get(region).get(resource_group)
-                client = ResourceManagementClient(wrapped_credential, sub_id)
+                client = ResourceManagementClient(credentials, sub_id)
                 compute_client = ComputeManagementClient(credentials, sub_id)
                 resource_groups = client.resources.list_by_resource_group(resource_group_name)
                 for rg in resource_groups:
