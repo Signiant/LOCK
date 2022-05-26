@@ -6,6 +6,9 @@ import pytz
 from project import values
 from datetime import datetime
 import time
+import hmac
+import hashlib
+import base64
 
 logging.getLogger('botocore').setLevel(logging.CRITICAL)
 
@@ -52,7 +55,6 @@ def delete_prompt(configMap, username, client, key, delete_special):
     list_keys(configMap, username)
     yes = {'yes', 'y', 'ye', ''}
     no = {'no', 'n'}
-    #  logging.info('Delete the access old key? (y/n) ' + (keys[1].get('AccessKeyId') if n == 0 else keys[0].get('AccessKeyId')))
     choice = None
     while choice not in yes and choice not in no:
         time.sleep(1)
@@ -105,7 +107,7 @@ def delete_inactive_key(client, keys, username):
 
 def create_key(client, username):
     response = client.create_access_key(UserName=username)
-    return response.get('AccessKey').get('AccessKeyId'),response.get('AccessKey').get('SecretAccessKey')
+    return response.get('AccessKey').get('AccessKeyId'), response.get('AccessKey').get('SecretAccessKey')
 
 
 def delete_old_key(client, username, keyId):
@@ -239,55 +241,41 @@ def list_keys(configMap, username):
 
 
 def rotate_ses_smtp_user(configMap, username, **key_args):
-    client = get_iam_client(configMap)
     if values.DryRun is True:
         logging.info('Dry run : rotate_ses_smtp_user')
     else:
-        try:
-            response = client.list_access_keys(UserName=username)
-            keys = response.get('AccessKeyMetadata')
-            for key in keys:
-                try:
-                    response = client.delete_access_key(
-                        UserName=username,
-                        AccessKeyId=key.get('AccessKeyId')
-                    )
-                except:
-                    pass
-        except:
-            pass
-        try:
-            client.detach_user_policy(UserName=username, PolicyArn=key_args.get('policy_arn'))
-        except:
-            pass
-        delete_iam_user(configMap, username, **key_args)
-
-        client.create_user(UserName=username)
-        client.attach_user_policy(UserName=username, PolicyArn=key_args.get('policy_arn'))
-        key = create_key(client, username)
-        print('                           New AccessKey: ' + str(key))
-
+        key = get_new_key(configMap, username, **key_args)
         password = hash_smtp_pass_from_secret_key(key[1])
 
         user_password = (key[0], password)
         update_user_password(user_password)
-        logging.info('      '+username + ' new user and password created')
+        logging.info(f'      {username} new user and password created')
+        if values.hide_key is True:
+            print(f'                           New Username: {str(user_password[0])}')
+        else:
+            print(f'                           New Username, Password: {str(user_password)}')
 
 
-# https://gist.github.com/w3iBStime/a26bd670bf7f98675674
-def hash_smtp_pass_from_secret_key(secretkey):
-    import base64
-    import hmac
-    import hashlib
+# https://aws.amazon.com/premiumsupport/knowledge-center/ses-rotate-smtp-access-keys/
+def sign(key, msg):
+    return hmac.new(key, msg.encode('utf-8'), hashlib.sha256).digest()
 
-    # replace with the secret key to be hashed
-    message = "SendRawEmail"
-    sig_bytes = bytearray(b'\x02')  # init with version
 
-    theHmac = hmac.new(secretkey.encode("ASCII"), message.encode("ASCII"), hashlib.sha256)
-    the_hmac_hexdigest = theHmac.hexdigest()
-    sig_bytes.extend(bytearray.fromhex(the_hmac_hexdigest))
-    return base64.b64encode(sig_bytes)
+def hash_smtp_pass_from_secret_key(secret_access_key, region='us-east-1'):
+    DATE = "11111111"
+    SERVICE = "ses"
+    MESSAGE = "SendRawEmail"
+    TERMINAL = "aws4_request"
+    VERSION = 0x04
+
+    signature = sign(("AWS4" + secret_access_key).encode('utf-8'), DATE)
+    signature = sign(signature, region)
+    signature = sign(signature, SERVICE)
+    signature = sign(signature, TERMINAL)
+    signature = sign(signature, MESSAGE)
+    signature_and_version = bytes([VERSION]) + signature
+    smtp_password = base64.b64encode(signature_and_version)
+    return smtp_password.decode('utf-8')
 
 
 def store_password_parameter_store(configMap, username,  **key_args):
@@ -300,7 +288,7 @@ def store_password_parameter_store(configMap, username,  **key_args):
         client.put_parameter(
             Name='LOCK.'+username.upper(),
             Description='modified by LOCK',
-            Value='Username: ' + values.user_password[0] + ' Password: ' + values.user_password[1].decode("utf-8"),
+            Value='Username: ' + values.user_password[0] + ' Password: ' + values.user_password[1],
             Type='SecureString',
             KeyId=configMap['Global']['parameter_store']['KeyId'],
             Overwrite=True
@@ -389,6 +377,7 @@ def get_ssm_client(configMap, **key_args):
     else:
         return boto3.client('ssm', aws_access_key_id=configMap['Global']['id'],
                                aws_secret_access_key=configMap['Global']['secret'],region_name=region_name)
+
 
 def get_ecs_client(configMap, **key_args):
 
