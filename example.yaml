@@ -2,7 +2,7 @@
     plugins:
         - iam:
            - get_new_key:
-           - store_key_parameter_store
+           - store_key_parameter_store:
         - ssh:
            - ssh_server_command: 
                   hostname: 'server1'
