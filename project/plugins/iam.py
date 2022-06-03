@@ -26,8 +26,9 @@ def get_iam_client(configMap,  **kwargs):
         session = get_iam_session()
         return session.client('iam')
     else:
-        return boto3.client('iam', aws_access_key_id=configMap['Global']['id'],
-                               aws_secret_access_key=configMap['Global']['secret'])
+        return boto3.client('iam',
+                            aws_access_key_id=configMap['Global']['id'],
+                            aws_secret_access_key=configMap['Global']['secret'])
 
 
 def delete_older_key(configMap, username, client):  # Delete the key if both have been used
@@ -78,8 +79,9 @@ def create_and_test_key(configMap, username):  # TO TEST A KEY
     logging.info('Waiting for key to populate...')
     time.sleep(15)
 
-    client2 =boto3.client('iam', aws_access_key_id=response.get('AccessKey').get('AccessKeyId'),
-                                 aws_secret_access_key=response.get('AccessKey').get('SecretAccessKey'))
+    client2 = boto3.client('iam',
+                           aws_access_key_id=response.get('AccessKey').get('AccessKeyId'),
+                           aws_secret_access_key=response.get('AccessKey').get('SecretAccessKey'))
 
     response = client2.list_access_keys(UserName=username)
     print(response)
@@ -106,8 +108,12 @@ def delete_inactive_key(client, keys, username):
 
 
 def create_key(client, username):
-    response = client.create_access_key(UserName=username)
-    return response.get('AccessKey').get('AccessKeyId'), response.get('AccessKey').get('SecretAccessKey')
+    try:
+        response = client.create_access_key(UserName=username)
+        return response.get('AccessKey').get('AccessKeyId'), response.get('AccessKey').get('SecretAccessKey')
+    except Exception as e:
+        logging.error(f'Unable to create new key for {username}: {e}')
+        return None, None
 
 
 def delete_old_key(client, username, keyId):
@@ -155,7 +161,7 @@ def validate_new_key(configMap, username, user_data):
             aws_profile = iam_data.get('credential_profile')
     if aws_profile:
         kwargs={}
-        kwargs['credential_profile']=aws_profile
+        kwargs['credential_profile'] = aws_profile
         client = get_iam_client(configMap, **kwargs)
     else:
         client = get_iam_client(configMap)
@@ -364,7 +370,7 @@ def update_user_password(pw):
 
 def get_ssm_client(configMap, **key_args):
 
-    region_name = key_args.get('region','us-east-1')
+    region_name = key_args.get('region', 'us-east-1')
 
     if key_args.get('credential_profile') is not None:
         profile_name = key_args.get('credential_profile')
@@ -390,7 +396,9 @@ def get_ecs_client(configMap, **key_args):
         return session.client('ecs')
     elif values.profile is not None:
         session = get_iam_session()
-        return session.client('ecs',region_name=region_name)
+        return session.client('ecs', region_name=region_name)
     else:
-        return boto3.client('ecs', aws_access_key_id=configMap['Global']['id'],
-                               aws_secret_access_key=configMap['Global']['secret'],region_name=region_name)
+        return boto3.client('ecs',
+                            aws_access_key_id=configMap['Global']['id'],
+                            aws_secret_access_key=configMap['Global']['secret'],
+                            region_name=region_name)
