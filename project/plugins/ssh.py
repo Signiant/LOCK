@@ -83,15 +83,16 @@ def SSH_server(hostname, username, port, commands, password=None, pkey=None, mar
 
 # ssh and write to file using commands
 def ssh_server_command(configMap, username,  **key_args):
-    if key_args.get('hostname') in configMap['Global']['server']:
-        auth = configMap['Global']['server'][key_args.get('hostname')]
-        key_args['user'] = auth.get('user')
-        key_args['password'] = auth.get('password')
+    if not key_args['user'] and not key_args['password']:
+        if key_args.get('hostname') in configMap['Global']['server']:
+            auth = configMap['Global']['server'][key_args.get('hostname')]
+            key_args['user'] = auth.get('user')
+            key_args['password'] = auth.get('password')
 
     list_of_commands = key_args.get('commands')
     list_of_commands = [command.replace("<new_key_name>", values.access_key[0].replace("/","\/")).replace("<new_key_secret>", values.access_key[1].replace("/","\/")) for command in list_of_commands]
 
     if key_args.get('pkey') != None:
-        SSH_server(hostname=key_args.get('hostname'), username=key_args.get('user'), port=key_args.get('port'), commands=list_of_commands, pkey=key_args.get('pkey'), markers=key_args.get('markers'),marker= key_args.get('marker'))
+        SSH_server(hostname=key_args.get('hostname'), username=key_args.get('user'), port=key_args.get('port'), commands=list_of_commands, pkey=key_args.get('pkey'), markers=key_args.get('markers'), marker= key_args.get('marker'))
     else:
         SSH_server(hostname=key_args.get('hostname'), password=key_args.get('password'),  username=key_args.get('user'), port=key_args.get('port'), marker=key_args.get('marker'), commands=list_of_commands, markers=key_args.get('markers'))

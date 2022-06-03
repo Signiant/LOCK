@@ -44,6 +44,8 @@ def main():
     parser.add_argument('-p', '--profile', help='The name of the AWS credential profile', required=False)
     parser.add_argument('-z', '--hidekey', help='Only display access key id when creating a key', action='store_true', required=False)
     parser.add_argument('-e', '--debug', help='Set logging level to debug', action='store_true', required=False)
+    parser.add_argument('--ad_username', required=False)
+    parser.add_argument('--ad_password', required=False)
     args = parser.parse_args()
 
     log_level = logging.INFO
@@ -81,6 +83,13 @@ def main():
     if args.profile is not None:
         values.profile = args.profile
 
+    ad_username = None
+    ad_password = None
+    if args.ad_username:
+        ad_username = args.ad_username
+    if args.ad_password:
+        ad_password = args.ad_password
+
     logging.debug("Config file %s" % str(configMap))
     all_users = configMap['Users']
     for userdata in all_users:
@@ -96,7 +105,7 @@ def main():
         update_access_key(args.key)
 
     if args.action == 'list':
-        key_args={}
+        key_args = {}
         # client = get_iam_client(configMap, **key_args)
         if username == 'all':
             for user_data in all_users:
@@ -110,9 +119,9 @@ def main():
             for user_data in all_users:
                 username = (next(iter(user_data)))
                 user_data = user_data.get(username)
-                rotate_update(configMap, user_data, username)
+                rotate_update(configMap, user_data, username, ad_username, ad_password)
         else:
-            rotate_update(configMap, user_data, username)
+            rotate_update(configMap, user_data, username, ad_username, ad_password)
 
     elif args.action == 'validate':  # validate that new key is being used and delete the old unused key
         if username == 'all':
@@ -145,7 +154,7 @@ def main():
     print("")
 
 
-def rotate_update(configMap, user_data, username):
+def rotate_update(configMap, user_data, username, ad_username=None, ad_password=None):
     update_access_key(('', ''))
     modules = user_data['plugins']
     for plugin in modules:
@@ -155,6 +164,10 @@ def rotate_update(configMap, user_data, username):
             key_args = (method[list(method.keys())[0]])  # get key pair of method to run
             if key_args is None:
                 key_args = {}
+            if ad_username:
+                key_args['user'] = ad_username
+            if ad_password:
+                key_args['password'] = ad_password
             method_to_call = getattr(my_plugin, list(method.keys())[0])  # get method name to run
             logging.info("Running "+str(method_to_call)[:-15] + "for " + username)
             result = method_to_call(configMap, username, **key_args)
