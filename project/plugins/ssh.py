@@ -83,7 +83,7 @@ def SSH_server(hostname, username, port, commands, password=None, pkey=None, mar
 
 # ssh and write to file using commands
 def ssh_server_command(configMap, username,  **key_args):
-    if not key_args['user'] and not key_args['password']:
+    if 'user' not in key_args and 'password' not in key_args:
         if key_args.get('hostname') in configMap['Global']['server']:
             auth = configMap['Global']['server'][key_args.get('hostname')]
             key_args['user'] = auth.get('user')
