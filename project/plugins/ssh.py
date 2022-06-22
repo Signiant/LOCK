@@ -1,29 +1,29 @@
 import logging
-import paramiko
 import re
+
+import paramiko
+
 from project import values
 
 logging.getLogger('paramiko').setLevel(logging.CRITICAL)
 
 
 def SSH_server(hostname, username, port, commands, password=None, pkey=None, marker=None, markers=None):
-    # https://gist.github.com/mlafeldt/841944
-
     logging.info('Attempting to connect to %s on port %s' % (hostname, str(port)))
     try:
         client = paramiko.SSHClient()
         client.load_system_host_keys()
-        client.set_missing_host_key_policy(paramiko.WarningPolicy)
+        client.set_missing_host_key_policy(paramiko.AutoAddPolicy)
 
         if not pkey:
             logging.info('Authenticating with username (%s) and password' % username)
             client.connect(hostname, port=port, username=username, password=password, allow_agent=False, look_for_keys=False)
         else:
-            k = paramiko.RSAKey.from_private_key_file(pkey)
+            k = paramiko.rsakey.RSAKey.from_private_key_file(pkey)
             logging.info('Authenticating with public key')
-            client.connect(hostname,  username=username,  pkey=k)
+            client.connect(hostname, username=username, pkey=k)
 
-        if markers is not None: # Currently Azure only
+        if markers is not None:  # Currently Azure only
             for i, mark in enumerate(markers):
                 path = (commands[i].split()[-1])
                 get_line = "sudo -- bash -c \"sed -n '/" + mark + "/=' " + path
@@ -73,26 +73,27 @@ def SSH_server(hostname, username, port, commands, password=None, pkey=None, mar
                     stdout.read()
                     error = stderr.read()
                     if error:
-                        logging.error('Error runnng command: %s' % error)
-                except:
-                    logging.error('Failed to write key to '+hostname)
-
+                        logging.error('Error running command: %s' % error)
+                except Exception as e:
+                    logging.error(f'Failed to write key to {hostname} - {e}')
+    except Exception as e:
+        logging.error(f'Error with SSH connection: {e}')
     finally:
         client.close()
 
 
 # ssh and write to file using commands
-def ssh_server_command(configMap, username,  **key_args):
+def ssh_server_command(config_map, username, **key_args):
     if 'user' not in key_args and 'password' not in key_args:
-        if key_args.get('hostname') in configMap['Global']['server']:
-            auth = configMap['Global']['server'][key_args.get('hostname')]
+        if key_args.get('hostname') in config_map['Global']['server']:
+            auth = config_map['Global']['server'][key_args.get('hostname')]
             key_args['user'] = auth.get('user')
             key_args['password'] = auth.get('password')
 
     list_of_commands = key_args.get('commands')
     list_of_commands = [command.replace("<new_key_name>", values.access_key[0].replace("/","\/")).replace("<new_key_secret>", values.access_key[1].replace("/","\/")) for command in list_of_commands]
 
-    if key_args.get('pkey') != None:
-        SSH_server(hostname=key_args.get('hostname'), username=key_args.get('user'), port=key_args.get('port'), commands=list_of_commands, pkey=key_args.get('pkey'), markers=key_args.get('markers'), marker= key_args.get('marker'))
+    if key_args.get('pkey'):
+        SSH_server(hostname=key_args.get('hostname'), username=key_args.get('user'), port=key_args.get('port'), commands=list_of_commands, pkey=key_args.get('pkey'), markers=key_args.get('markers'), marker=key_args.get('marker'))
     else:
-        SSH_server(hostname=key_args.get('hostname'), password=key_args.get('password'),  username=key_args.get('user'), port=key_args.get('port'), marker=key_args.get('marker'), commands=list_of_commands, markers=key_args.get('markers'))
+        SSH_server(hostname=key_args.get('hostname'), password=key_args.get('ad_password'),  username=key_args.get('ad_user'), port=key_args.get('port'), marker=key_args.get('marker'), commands=list_of_commands, markers=key_args.get('markers'))
