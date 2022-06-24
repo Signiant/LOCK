@@ -166,7 +166,7 @@ def rotate_update(configMap, user_data, username, ad_username=None, ad_password=
             if ad_username:
                 key_args['ad_user'] = ad_username
             if ad_password:
-                key_args['ad_ypassword'] = ad_password
+                key_args['ad_password'] = ad_password
             method_to_call = getattr(my_plugin, list(method.keys())[0])  # get method name to run
             logging.info("Running "+str(method_to_call)[:-15] + "for " + username)
             result = method_to_call(configMap, username, **key_args)
