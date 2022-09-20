@@ -13,10 +13,13 @@ logging.getLogger('azure.keyvault.secrets').setLevel(logging.CRITICAL)
 logging.getLogger('azure.mgmt.resource.resources').setLevel(logging.CRITICAL)
 logging.getLogger('azure.identity').setLevel(logging.CRITICAL)
 logging.getLogger('azure.common.credentials').setLevel(logging.CRITICAL)
+logging.getLogger('azure.mgmt.compute').setLevel(logging.CRITICAL)
+logging.getLogger('azure.core').setLevel(logging.CRITICAL)
+logging.getLogger('azure').setLevel(logging.CRITICAL)
+logging.getLogger('urllib3').setLevel(logging.CRITICAL)
 
 
-def rotate_autoscalers_cloud(configMap, username,  **key_args):
-
+def rotate_vms(configMap, username,  **key_args):
     auth = configMap['Global']['azure_credentials'][key_args.get('account')]
     credentials = ClientSecretCredential(auth.get('tenant'), auth.get('client_id'), auth.get('secret'))
     subscriptions = key_args.get('resource_group_subscriptionid')
@@ -28,7 +31,7 @@ def rotate_autoscalers_cloud(configMap, username,  **key_args):
             for resource_group in item.get(region):
                 resource_group_name = resource_group
                 sub_id = item.get(region).get(resource_group)
-                client = ResourceManagementClient(credentials, sub_id)
+                client = ResourceManagementClient(credentials, sub_id, logging_enable=False)
                 compute_client = ComputeManagementClient(credentials, sub_id)
                 resource_groups = client.resources.list_by_resource_group(resource_group_name)
                 for rg in resource_groups:
@@ -47,37 +50,20 @@ def rotate_autoscalers_cloud(configMap, username,  **key_args):
 
         logging.info(f'Found the following VMs: {to_rotate}')
         # Build dns names
-        for vm in to_rotate:  # rotate key for server type
+        for vm in to_rotate:
             markers = []
             commands = []
-            if 'autoscaler' in vm:
-                for host in key_args.get('autoscalers'):
-                    r = region.replace('-', '')
-                    if r in host:
-                        key_args['hostname']=host
-                logging.info('      Writing key to '+key_args['hostname'])
-                for pkey in key_args.get('pkeys'):
-                    if region.replace('-','') in pkey:
-                        key_args['pkey'] = pkey
-
-                for marker in key_args.get('autoscaler_markers_commands'):
-                    markers.append(marker)
-                    commands.append(key_args.get('autoscaler_markers_commands').get(marker))
-                key_args['commands'] = commands
-                key_args['markers'] = markers
-                ssh_server_command(configMap, username, **key_args)
-            else:  # its a flight server
-                key_args['hostname'] = key_args.get('f_host').replace('<SERVER>', vm).replace('<REGION>', region.replace('-', ''))
-                logging.info('      Writing key to '+key_args['hostname'])
-                for pkey in key_args.get('pkeys'):
-                    if region.replace('-', '') in pkey:
-                        key_args['pkey'] = pkey
-                for marker in key_args.get('fadmin_markers_commands'):
-                    markers.append(marker)
-                    commands.append(key_args.get('fadmin_markers_commands').get(marker))
-                key_args['commands'] = commands
-                key_args['markers'] = markers
-                ssh_server_command(configMap, username, **key_args)
+            key_args['hostname'] = key_args.get('f_host').replace('<SERVER>', vm)
+            logging.info('      Writing key to '+key_args['hostname'])
+            for pkey in key_args.get('pkeys'):
+                if region.replace('-', '') in pkey:
+                    key_args['pkey'] = pkey
+            for marker in key_args.get('fadmin_markers_commands'):
+                markers.append(marker)
+                commands.append(key_args.get('fadmin_markers_commands').get(marker))
+            key_args['commands'] = commands
+            key_args['markers'] = markers
+            ssh_server_command(configMap, username, **key_args)
 
 
 def set_key_vault(configMap, username,  **key_args):

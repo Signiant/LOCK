@@ -263,8 +263,4 @@ def upload_blob(storage_client, bucket_name, source_file_name, destination_blob_
 
     blob.upload_from_filename(source_file_name)
 
-    print(
-        "File {} uploaded to {}.".format(
-            source_file_name, destination_blob_name
-        )
-    )
+    logging.info("File {} uploaded to {}.".format(source_file_name, destination_blob_name))
