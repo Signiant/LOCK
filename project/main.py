@@ -156,21 +156,27 @@ def main():
 def rotate_update(configMap, user_data, username, ad_username=None, ad_password=None):
     update_access_key(('', ''))
     modules = user_data['plugins']
-    for plugin in modules:
-        my_plugin = importlib.import_module('project.plugins.' + list(plugin.keys())[0])
-        plugin = plugin.get(list(plugin.keys())[0])
-        for method in plugin:  # modules = dict, module = str
-            key_args = (method[list(method.keys())[0]])  # get key pair of method to run
-            if key_args is None:
-                key_args = {}
-            if ad_username:
-                key_args['ad_user'] = ad_username
-            if ad_password:
-                key_args['ad_password'] = ad_password
-            method_to_call = getattr(my_plugin, list(method.keys())[0])  # get method name to run
-            logging.info("Running "+str(method_to_call)[:-15] + "for " + username)
-            result = method_to_call(configMap, username, **key_args)
-            # TODO: Check result and abort remaining methods if one fails
+    try:
+        for plugin in modules:
+            my_plugin = importlib.import_module('project.plugins.' + list(plugin.keys())[0])
+            plugin = plugin.get(list(plugin.keys())[0])
+            for method in plugin:  # modules = dict, module = str
+                key_args = (method[list(method.keys())[0]])  # get key pair of method to run
+                if key_args is None:
+                    key_args = {}
+                if ad_username:
+                    key_args['ad_user'] = ad_username
+                if ad_password:
+                    key_args['ad_password'] = ad_password
+                method_to_call = getattr(my_plugin, list(method.keys())[0])  # get method name to run
+                logging.info("Running "+str(method_to_call)[:-15] + "for " + username)
+                result = method_to_call(configMap, username, **key_args)
+                # TODO: Check result and abort remaining methods if one fails
+                if 'get_new_key' in str(method_to_call) and not result:
+                    logging.error(f'Failed to get new key - skipping {username}')
+                    raise StopIteration
+    except StopIteration:
+        pass
 
 
 if __name__ == "__main__":

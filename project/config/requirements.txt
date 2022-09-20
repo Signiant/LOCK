@@ -4,6 +4,7 @@ azure-keyvault
 azure-mgmt-common
 azure-mgmt-resource
 azure-mgmt-compute
+six
 pytz>=2018.7
 jenkinsapi>=0.3.8
 requests>=2.20.1

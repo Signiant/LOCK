@@ -137,15 +137,23 @@ def get_new_key(configMap, username, **kwargs):
         delete_inactive_key(client, existing_keys, username)
         # delete keys that have never been used (if any)
         delete_older_key(configMap, username, client)
-        # create a new key
-        new_key = create_key(client, username)
-        logging.info('      New key created for user ' + username)
-        update_access_key(new_key)
-        if values.hide_key is True:
-            print('                           New AccessKey: ' + str(new_key[0]))
+        # Get the keys again
+        existing_keys = get_access_keys(client, username)
+        if len(existing_keys) < 2:
+            # create a new key
+            new_key = create_key(client, username)
+            logging.info('      New key created for user ' + username)
+            update_access_key(new_key)
+            # TODO: Print secret key to log file even if hide_key is provided
+            if values.hide_key is True:
+                logging.info('                           New AccessKey: ' + str(new_key[0]))
+            else:
+                logging.info('                           New AccessKey: ' + str(new_key))
+            return new_key
         else:
-            print('                           New AccessKey: ' + str(new_key))
-        return new_key
+            # There are still 2 keys present - can't create another one
+            logging.error('      There are already two (active) keys present - cannot continue')
+            return None
     else:
         logging.info('Dry run of get new key')
 
@@ -251,15 +259,18 @@ def rotate_ses_smtp_user(configMap, username, **key_args):
         logging.info('Dry run : rotate_ses_smtp_user')
     else:
         key = get_new_key(configMap, username, **key_args)
-        password = hash_smtp_pass_from_secret_key(key[1])
+        if key:
+            password = hash_smtp_pass_from_secret_key(key[1])
 
-        user_password = (key[0], password)
-        update_user_password(user_password)
-        logging.info(f'      {username} new user and password created')
-        if values.hide_key is True:
-            print(f'                           New Username: {str(user_password[0])}')
+            user_password = (key[0], password)
+            update_user_password(user_password)
+            logging.info(f'      {username} new user and password created')
+            if values.hide_key is True:
+                print(f'                           New Username: {str(user_password[0])}')
+            else:
+                print(f'                           New Username, Password: {str(user_password)}')
         else:
-            print(f'                           New Username, Password: {str(user_password)}')
+            logging.error(f'      {username}: Unable to get new key - skipping')
 
 
 # https://aws.amazon.com/premiumsupport/knowledge-center/ses-rotate-smtp-access-keys/
