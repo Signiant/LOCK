@@ -146,9 +146,9 @@ def get_new_key(configMap, username, **kwargs):
             update_access_key(new_key)
             # TODO: Print secret key to log file even if hide_key is provided
             if values.hide_key is True:
-                logging.info('                           New AccessKey: ' + str(new_key[0]))
+                logging.info('      New AccessKey: ' + str(new_key[0]))
             else:
-                logging.info('                           New AccessKey: ' + str(new_key))
+                logging.info('      New AccessKey: ' + str(new_key))
             return new_key
         else:
             # There are still 2 keys present - can't create another one
