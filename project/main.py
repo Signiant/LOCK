@@ -20,12 +20,12 @@ def set_DryRun(bool):
 
 def readConfigFile(path):
     try:
-        logging.debug("Config file path %s" % path)
+        logging.debug(f"Config file path {path}")
         config_file_handle = open(path)
         configMap = yaml.load(config_file_handle, Loader=yaml.FullLoader)
         config_file_handle.close()
     except Exception as e:
-        logging.error("Error: Unable to open config file %s or invalid Yaml %s" % (path, str(e)))
+        logging.error(f"Error: Unable to open config file {path} or invalid Yaml {str(e)}")
         sys.exit(1)
     return configMap
 
@@ -89,7 +89,7 @@ def main():
     if args.ad_password:
         ad_password = args.ad_password
 
-    logging.debug("Config file %s" % str(configMap))
+    logging.debug(f"Config file {str(configMap)}")
     all_users = configMap['Users']
     for userdata in all_users:
         if username == (next(iter(userdata))):
@@ -125,32 +125,33 @@ def main():
     elif args.action == 'validate':  # validate that new key is being used and delete the old unused key
         if username == 'all':
             for userdata in all_users:
-                username = (next(iter(userdata)))
-                user_data = userdata.get(username)
+                username_to_validate = (next(iter(userdata)))
+                user_data = userdata.get(username_to_validate)
                 if user_data.get('plugins'):
                     if user_data.get('plugins')[0].get('iam'):
                         if 'get_new_key' in user_data.get('plugins')[0].get('iam')[0]:
-                            validate_new_key(configMap, username, user_data)
+                            validate_new_key(configMap, username_to_validate, user_data)
                         else:
-                            logging.info('   No get_new_key section for iam plugin for user %s - skipping' % username)
+                            logging.info(f'   No get_new_key section for iam plugin for user {username_to_validate} - skipping')
                     else:
-                        logging.info('   No iam plugin section for user %s - skipping' % username)
+                        logging.info(f'   No iam plugin section for user {username_to_validate} - skipping')
                 else:
-                    logging.info('   No plugins section for user %s - skipping' % username)
+                    logging.info(f'   No plugins section for user {username_to_validate} - skipping')
         else:
-            user_data = userdata.get(username)
-            if user_data.get('plugins'):
-                if user_data.get('plugins')[0].get('iam'):
-                    if 'get_new_key' in user_data.get('plugins')[0].get('iam')[0]:
-                        validate_new_key(configMap, username, user_data)
+            for userdata in all_users:
+                username_to_validate = (next(iter(userdata)))
+                if username == username_to_validate:
+                    user_data = userdata.get(username_to_validate)
+                    if user_data.get('plugins'):
+                        if user_data.get('plugins')[0].get('iam'):
+                            if 'get_new_key' in user_data.get('plugins')[0].get('iam')[0]:
+                                validate_new_key(configMap, username_to_validate, user_data)
+                            else:
+                                logging.info(f'   No get_new_key section for iam plugin for user {username_to_validate} - skipping')
+                        else:
+                            logging.info(f'   No iam plugin section for user {username_to_validate} - skipping')
                     else:
-                        logging.info('   No get_new_key section for iam plugin for user %s - skipping' % username)
-                else:
-                    logging.info('   No iam plugin section for user %s - skipping' % username)
-            else:
-                logging.info('   No plugins section for user %s - skipping' % username)
-
-    print("")
+                        logging.info(f'   No plugins section for user {username_to_validate} - skipping')
 
 
 def rotate_update(configMap, user_data, username, ad_username=None, ad_password=None):
