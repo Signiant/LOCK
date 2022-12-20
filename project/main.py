@@ -86,8 +86,10 @@ def main():
     ad_password = None
     if args.ad_username:
         ad_username = args.ad_username
-    if args.ad_password:
-        ad_password = args.ad_password
+        if args.ad_password:
+            ad_password = args.ad_password
+        else:
+            ad_password = input(f"Password for {ad_username}: ")
 
     logging.debug(f"Config file {str(configMap)}")
     all_users = configMap['Users']
