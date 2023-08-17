@@ -95,7 +95,7 @@ def update_pipeline_service_connection(configMap, username,  **key_args):
     credentials = BasicAuthentication('', personal_access_token)
     connection = Connection(base_url=organization_url, creds=credentials)
     # Get a service endpoint client
-    service_endpoint_client = connection.clients_v6_0.get_service_endpoint_client()
+    service_endpoint_client = connection.clients.get_service_endpoint_client()
 
     for project in projects:
         for endpoint in projects[project]:
