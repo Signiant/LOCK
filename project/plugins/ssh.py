@@ -9,6 +9,8 @@ logging.getLogger('paramiko').setLevel(logging.CRITICAL)
 
 
 def SSH_server(hostname, username, port, commands, password=None, pkey=None, marker=None, markers=None):
+    if port is None:
+        port = 22
     logging.info('Attempting to connect to %s on port %s' % (hostname, str(port)))
     try:
         client = paramiko.SSHClient()
@@ -88,6 +90,18 @@ def ssh_server_command(config_map, username, **key_args):
     list_of_commands = [command.replace("<new_key_name>", values.access_key[0].replace("/","\/")).replace("<new_key_secret>", values.access_key[1].replace("/","\/")) for command in list_of_commands]
 
     if key_args.get('pkey'):
-        SSH_server(hostname=key_args.get('hostname'), username=key_args.get('user'), port=key_args.get('port'), commands=list_of_commands, pkey=key_args.get('pkey'), markers=key_args.get('markers'), marker=key_args.get('marker'))
+        SSH_server(hostname=key_args.get('hostname'),
+                   username=key_args.get('user'),
+                   port=key_args.get('port'),
+                   commands=list_of_commands,
+                   pkey=key_args.get('pkey'),
+                   markers=key_args.get('markers'),
+                   marker=key_args.get('marker'))
     else:
-        SSH_server(hostname=key_args.get('hostname'), password=key_args.get('ad_password'),  username=key_args.get('ad_user'), port=key_args.get('port'), marker=key_args.get('marker'), commands=list_of_commands, markers=key_args.get('markers'))
+        SSH_server(hostname=key_args.get('hostname'),
+                   username=key_args.get('ssh_user'),
+                   port=key_args.get('port'),
+                   commands=list_of_commands,
+                   password=key_args.get('ssh_password'),
+                   marker=key_args.get('marker'),
+                   markers=key_args.get('markers'))
