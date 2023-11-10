@@ -22,7 +22,7 @@ def _log_and_print_to_console(msg, log_level='info'):
     log_func[log_level.lower()](msg)
 
 
-def set_param_in_region(configMap,region, parameter, value, value_is_file=False, description=None, encrypt=False, key=None):
+def set_param_in_region(config_map,region, parameter, value, value_is_file=False, description=None, encrypt=False, key=None):
     if not region:
         _log_and_print_to_console("ERROR: You must supply a region", 'error')
         sys.exit(1)
@@ -33,7 +33,7 @@ def set_param_in_region(configMap,region, parameter, value, value_is_file=False,
 
     return_value = None
 
-    ssm = get_ssm_client(configMap)
+    ssm = get_ssm_client(config_map)
 
     if encrypt:
         type = "SecureString"
@@ -81,16 +81,15 @@ def set_param_in_region(configMap,region, parameter, value, value_is_file=False,
     return return_value
 
 
-def set_paramameter(configMap, region_list, param_name, value, value_is_file=False, description=None, encrypt=False, key=None):
+def set_paramameter(config_map, region_list, param_name, value, value_is_file=False, description=None, encrypt=False, key=None):
     result = {}
     for region in region_list:
         logging.debug("Checking region: " + region)
-        result[region] = set_param_in_region(configMap,region, param_name, value, value_is_file, description, encrypt, key)
+        result[region] = set_param_in_region(config_map, region, param_name, value, value_is_file, description, encrypt, key)
     return result
 
 
-def set_param(configMap, username, **key_args):
-
+def set_param(config_map, username, **key_args):
     if key_args.get('encrypt') == 'True':
         encrypt = True
     else:
@@ -98,6 +97,9 @@ def set_param(configMap, username, **key_args):
 
     value = key_args.get('value').replace("<new_key_name>", values.access_key[0]).replace("<new_key_secret>", values.access_key[1])
 
-    result = set_paramameter(configMap,key_args.get('region_list'), key_args.get('param_name'), value, value_is_file=False, description=None, encrypt=encrypt, key=key_args.get('key'))
+    param_name = key_args.get('param_name')
+    logging.info(f'   Parameter Name: {param_name}')
+    result = set_paramameter(config_map, key_args.get('region_list'), param_name, value, value_is_file=False,
+                             description=None, encrypt=encrypt, key=key_args.get('key'))
     for region in result:
         logging.info('      '+region + ': ' + ("Success" if result[region] == 200 else "Failed"))
