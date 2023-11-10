@@ -168,7 +168,7 @@ def rotate_update(config_map, user_data, username, ssh_username=None, ssh_passwo
                 if ssh_password:
                     key_args['ssh_password'] = ssh_password
                 method_to_call = getattr(my_plugin, list(method.keys())[0])  # get method name to run
-                logging.info("Running "+str(method_to_call)[:-15] + "for " + username)
+                logging.info("Running "+str(method_to_call)[:-15].lstrip('<') + "for " + username)
                 result = method_to_call(config_map, username, **key_args)
                 # TODO: Check result and abort remaining methods if one fails
                 if 'get_new_key' in str(method_to_call) and not result:

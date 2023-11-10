@@ -5,6 +5,7 @@ command line application and sample code for accessing a secret version.
 import logging
 import os
 import time
+import tempfile
 from datetime import datetime
 
 from google.cloud import kms_v1, secretmanager, storage
@@ -166,7 +167,7 @@ def update_encrypted_secret(configMap, username,  **key_args):
 
         try:
             kms_client = kms_v1.KeyManagementServiceClient(credentials=credentials)
-            storage_client = storage.Client(key_args.get('project_id'),credentials=credentials)
+            storage_client = storage.Client(key_args.get('project_id'), credentials=credentials)
 
         except Exception as e:
             logging.error(
@@ -176,7 +177,8 @@ def update_encrypted_secret(configMap, username,  **key_args):
         # print(Value)
 
         # create aws file with new credential from the ../config/aws/credentials
-        aws_cred="[default]\naws_access_key_id = {0}\naws_secret_access_key = {1}\n".format(values.access_key[0],values.access_key[1])
+        aws_cred = ("[default]\naws_access_key_id = {0}\naws_secret_access_key = {1}\n".
+                    format(values.access_key[0], values.access_key[1]))
 
         # encrypt that file through kms
         try:
@@ -189,22 +191,23 @@ def update_encrypted_secret(configMap, username,  **key_args):
                 "     ***** Exception trying to encrypt flight-gateway cred Exception: {0}".format(e))
             return
 
-        current_directory = os.getcwd()
-        # print(current_directory)
+        temp_dir = tempfile.gettempdir()
+        encrypted_filename = 'aws.credentials.encrypted'
+        encrypted_file_path = os.path.join(temp_dir, encrypted_filename)
 
-        aws_cred_file = os.path.join(current_directory, "aws.credentials.encrypted")
-        with open(aws_cred_file, "wb") as file_handle:
+        with open(encrypted_file_path, "wb") as file_handle:
             file_handle.write(aws_cred_encrypted)
 
         try:
             # save that file to the storage under gcp path /project/flight-gateway/storage/...
-            upload_blob(storage_client, key_args.get('bucket_name'), aws_cred_file, key_args.get('file_name'))
+            upload_blob(storage_client, key_args.get('bucket_name'), encrypted_file_path, key_args.get('file_name'))
         except Exception as e:
             logging.error(
                 "     ***** Exception trying to upload encrypted cred to gcp bucket. Exception: {0}".format(e))
             return
+
         # delete local encrypted file.
-        os.remove(aws_cred_file)
+        os.remove(encrypted_file_path)
 
         return "Rotate AWS cred in GCP complete"
 
@@ -220,9 +223,15 @@ def encrypt_symmetric(kms_client, project_id, location_id, key_ring_id, key_id, 
     # Build the key name.
     key_name = kms_client.crypto_key_path(project_id, location_id, key_ring_id, key_id)
 
-    # Call the API.
-    encrypt_response = kms_client.encrypt(
-      request={'name': key_name, 'plaintext': plaintext_bytes, 'plaintext_crc32c': plaintext_crc32c})
+    # Initialize request argument(s)
+    request = kms_v1.EncryptRequest(
+        name=key_name,
+        plaintext=plaintext_bytes,
+        plaintext_crc32c=plaintext_crc32c
+    )
+
+    # Make the request
+    encrypt_response = kms_client.encrypt(request=request)
 
     # Optional, but recommended: perform integrity verification on encrypt_response.
     # For more details on ensuring E2E in-transit integrity to and from Cloud KMS visit:
