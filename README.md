@@ -14,7 +14,9 @@ LOCK has 4 main modes that accept an IAM user as an argument or from a YAML conf
 
 - Install Python 3.6 or higher
 - Clone this repository
-- Run  `pip3 install -r project/config/requirements.txt` to install the dependencies
+- Run `python3 -m venv .env` to create a virtual environment
+- Run `source .env/bin/activate` to activate the virtual environment
+- Run `python3 -m pip install -r project/config/requirements.txt` to install the dependencies
 - Run from LOCK's root folder
 
 #
