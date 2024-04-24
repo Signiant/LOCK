@@ -1,3 +1,12 @@
+#!/usr/bin/env python3
+
+from pathlib import Path
+LOCK_root = str(Path(__file__).resolve().parent.parent)
+print(f"Project is running from: [{LOCK_root}]")
+
+import sys
+sys.path.append(LOCK_root)
+
 import argparse
 import importlib
 import logging

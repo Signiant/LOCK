@@ -24,29 +24,33 @@ def rotate_vms(configMap, username,  **key_args):
     credentials = ClientSecretCredential(auth.get('tenant'), auth.get('client_id'), auth.get('secret'))
     subscriptions = key_args.get('resource_group_subscriptionid')
 
-    for item in subscriptions:
+    for subscription in subscriptions:
         to_rotate = []
-        for key in item:
-            region = key
-            for resource_group in item.get(region):
-                resource_group_name = resource_group
-                sub_id = item.get(region).get(resource_group)
-                client = ResourceManagementClient(credentials, sub_id, logging_enable=False)
-                compute_client = ComputeManagementClient(credentials, sub_id)
-                resource_groups = client.resources.list_by_resource_group(resource_group_name)
-                for rg in resource_groups:
-                    if rg.type == 'Microsoft.Compute/virtualMachines':
-                        try:
-                            result = compute_client.virtual_machines.get(resource_group_name,
-                                                                         rg.name,
-                                                                         expand='instanceView')
-                            if 'running' in result.instance_view.statuses[1].display_status:
-                                to_rotate.append(rg.name)
-                            else:
-                                logging.warning(f'{rg.name} Not in RUNNING state - skipping')
-                        except msrestazure.azure_exceptions.CloudError as e:
-                            if 'not found' in e.message:
-                                logging.warning(f'{rg.name} Not Found - skipping')
+        for region in subscription:
+            for resource_group_name_prefix, subscription_id in subscription.get(region).items():
+                resource_client = ResourceManagementClient(credentials, subscription_id, logging_enable=False)
+                compute_client = ComputeManagementClient(credentials, subscription_id)
+                
+                resource_groups = resource_client.resource_groups.list()
+                matching_resource_groups = [
+                    rg for rg in resource_groups if rg.name.startswith(resource_group_name_prefix)
+                ]
+                for matching_resource_group in matching_resource_groups:
+                    resource_group_name = matching_resource_group.name
+                    resources = resource_client.resources.list_by_resource_group(resource_group_name)
+                    for resource in resources:
+                        if resource.type == 'Microsoft.Compute/virtualMachines':
+                            try:
+                                result = compute_client.virtual_machines.get(resource_group_name,
+                                                                            resource.name,
+                                                                            expand='instanceView')
+                                if 'running' in result.instance_view.statuses[1].display_status:
+                                    to_rotate.append(result.instance_view.computer_name)
+                                else:
+                                    logging.warning(f'{resource.name} Not in RUNNING state - skipping')
+                            except msrestazure.azure_exceptions.CloudError as e:
+                                if 'not found' in e.message:
+                                    logging.warning(f'{resource.name} Not Found - skipping')
 
         logging.info(f'Found the following VMs: {to_rotate}')
         # Build dns names
