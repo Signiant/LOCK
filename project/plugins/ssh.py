@@ -80,6 +80,7 @@ def SSH_server(hostname, username, port, commands, password=None, pkey=None, mar
                     logging.error(f'Failed to write key to {hostname} - {e}')
     except Exception as e:
         logging.error(f'Error with SSH connection: {e}')
+        raise e
     finally:
         client.close()
 
