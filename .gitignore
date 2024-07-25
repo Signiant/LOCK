@@ -4,3 +4,4 @@ config.yaml
 lock-flight-gateway.json
 lock-secret.json
 .env
+keys
