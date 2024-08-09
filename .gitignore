@@ -1,6 +1,8 @@
 .idea/*
+.DS_Store
 *.log
 config.yaml
 lock-flight-gateway.json
 lock-secret.json
 .env
+keys

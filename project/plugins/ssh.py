@@ -8,76 +8,99 @@ from project import values
 logging.getLogger('paramiko').setLevel(logging.CRITICAL)
 
 
-def SSH_server(hostname, username, port, commands, password=None, pkey=None, marker=None, markers=None):
+def load_ssh_key(pkey_path, password=None):
+    try:
+        with open(pkey_path, 'r') as key_file:
+            key_data = key_file.read()
+
+        if "BEGIN RSA PRIVATE KEY" in key_data:
+            return paramiko.RSAKey.from_private_key_file(pkey_path, password=password)
+        elif "BEGIN OPENSSH PRIVATE KEY" in key_data:
+            return paramiko.Ed25519Key.from_private_key_file(pkey_path, password=password)
+        else:
+            raise ValueError("Unsupported key format")
+    except paramiko.PasswordRequiredException:
+        logging.error("SSH key is encrypted and requires a passphrase.")
+    except paramiko.SSHException as e:
+        logging.error(f"Error loading SSH key: {e}")
+    except Exception as e:
+        logging.error(f"Unexpected error: {e}")
+    return None
+
+
+def find_line_number(client, file_path, marker, password=None):
+    find_line_cmd = f"sed -n '/{marker}/=' {file_path}"
+    if password:
+        find_line_cmd = f"echo '{password}' | sudo -S {find_line_cmd}"
+
+    stdin, stdout, stderr = client.exec_command(find_line_cmd, get_pty=True)
+    output = stdout.read().decode("utf-8")
+    logging.debug(f"Output from find_line_cmd: {output}")
+
+    lines = re.findall(r'\d+', output)
+    if lines:
+        return int(lines[0])
+    else:
+        logging.error(f"No line number found for the marker: {marker}")
+        return None
+
+
+def execute_command(client, command, password=None):
+    command = command.replace("<q>", '\\"')
+
+    if password is not None:
+        command = command.replace('<password>', password)
+
+    if values.DryRun is True:
+        logging.info(f'Dry run, command: {command}')
+    else:
+        try:
+            logging.debug(f'Running command: {command}')
+            stdin, stdout, stderr = client.exec_command(command, get_pty=True)
+            stdout.read()
+            error = stderr.read()
+            if error:
+                logging.error(f'Error running command: {error}')
+        except Exception as e:
+            logging.error(f'Failed to execute command - {e}')
+
+
+def update_env_vars(client, file_path, commands, markers, password=None):
+    for i, marker in enumerate(markers):
+        line_num = find_line_number(client, file_path, marker, password)
+        if line_num is not None:
+            commands[i] = commands[i].replace('<line>', str(line_num))
+            logging.info(f"Updated command: {commands[i]}")
+            execute_command(client, commands[i], password)
+
+
+def ssh_server(hostname, username, port, commands, password=None, pkey=None, markers=None):
     if port is None:
         port = 22
-    logging.info('Attempting to connect to %s on port %s' % (hostname, str(port)))
+    logging.info(f'Attempting to connect to {hostname} on port {port}')
     try:
         client = paramiko.SSHClient()
         client.load_system_host_keys()
         client.set_missing_host_key_policy(paramiko.AutoAddPolicy)
 
         if not pkey:
-            logging.info('Authenticating with username (%s) and password' % username)
-            client.connect(hostname, port=port, username=username, password=password, allow_agent=False, look_for_keys=False)
+            logging.info(f'Authenticating with username ({username}) and password')
+            client.connect(hostname, port=port, username=username, password=password, allow_agent=False,
+                           look_for_keys=False)
         else:
-            k = paramiko.rsakey.RSAKey.from_private_key_file(pkey)
+            key = load_ssh_key(pkey, password)
+            if key is None:
+                logging.error("Failed to load the SSH key.")
+                return
             logging.info('Authenticating with public key')
-            client.connect(hostname, username=username, pkey=k)
+            client.connect(hostname, port=port, username=username, pkey=key)
 
-        if markers is not None:  # Currently Azure only
-            for i, mark in enumerate(markers):
-                path = (commands[i].split()[-1])
-                get_line = "sudo -- bash -c \"sed -n '/" + mark + "/=' " + path
-                stdin, stdout, stderr = client.exec_command(get_line,get_pty=True)
-
-                line_string = stdout.read().decode('utf-8')
-
-                line=[s.strip() for s in line_string.splitlines()][0]  # remove \n and return first int
-                line_num = int(line)
-                commands[i] = commands[i].replace('<line>', str(line_num+1))
-
-        if marker is not None:
-            get_pty = False
-            find_line_cmd = None
-            if 'sudo' in commands[0]:
-                # Needs to be run as root
-                get_pty = True
-                find_line_cmd = "echo '%s' | sudo -S sed -n '/%s/=' %s" % (password, marker, commands[0].split()[-1])
-            else:
-                find_line_cmd = "sed -n '/%s/=' %s" % (marker, commands[0].split()[-1])
-            find_line_cmd = find_line_cmd.replace("\"", "")
-            stdin, stdout, stderr = client.exec_command(find_line_cmd, get_pty=get_pty)
-
-            output = (stdout.read().decode("utf-8"))
-            logging.debug("Output from find_line_cmd: %s" % output)
-            lines = re.search(r'\d+', output)
-            if lines:
-                line_num = int(lines.group())
-
-                for i, command in enumerate(commands):
-                    line_num += 1
-                    commands[i] = command.replace('<line>', str(line_num))
-
-        logging.info('Writing to '+hostname)
-        for command in commands:
-            command = command.replace("<q>", '\\"')
-
-            if password is not None:
-                command = command.replace('<password>', password)
-
-            if values.DryRun is True:
-                logging.info('Dry run, '+hostname+'| ssh command: '+command)
-            else:
-                try:
-                    logging.debug('Running command: %s' % str(command))
-                    stdin, stdout, stderr = client.exec_command(command,  get_pty=True)
-                    stdout.read()
-                    error = stderr.read()
-                    if error:
-                        logging.error('Error running command: %s' % error)
-                except Exception as e:
-                    logging.error(f'Failed to write key to {hostname} - {e}')
+        if markers is not None:
+            update_env_vars(client, commands[0].split()[-1], commands, markers, password)
+        else:
+            logging.info(f'Executing commands on {hostname}')
+            for command in commands:
+                execute_command(client, command, password)
     except Exception as e:
         logging.error(f'Error with SSH connection: {e}')
         raise e
@@ -88,21 +111,23 @@ def SSH_server(hostname, username, port, commands, password=None, pkey=None, mar
 # ssh and write to file using commands
 def ssh_server_command(config_map, username, **key_args):
     list_of_commands = key_args.get('commands')
-    list_of_commands = [command.replace("<new_key_name>", values.access_key[0].replace("/","\/")).replace("<new_key_secret>", values.access_key[1].replace("/","\/")) for command in list_of_commands]
+    list_of_commands = [
+        command.replace("<new_key_name>", values.access_key[0].replace("/", "\/")).replace("<new_key_secret>",
+                                                                                           values.access_key[1].replace(
+                                                                                               "/", "\/")) for command
+        in list_of_commands]
 
     if key_args.get('pkey'):
-        SSH_server(hostname=key_args.get('hostname'),
+        ssh_server(hostname=key_args.get('hostname'),
                    username=key_args.get('user'),
                    port=key_args.get('port'),
                    commands=list_of_commands,
                    pkey=key_args.get('pkey'),
-                   markers=key_args.get('markers'),
-                   marker=key_args.get('marker'))
+                   markers=key_args.get('markers'))
     else:
-        SSH_server(hostname=key_args.get('hostname'),
+        ssh_server(hostname=key_args.get('hostname'),
                    username=key_args.get('ssh_user'),
                    port=key_args.get('port'),
                    commands=list_of_commands,
                    password=key_args.get('ssh_password'),
-                   marker=key_args.get('marker'),
                    markers=key_args.get('markers'))
