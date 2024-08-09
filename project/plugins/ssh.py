@@ -45,17 +45,33 @@ def find_line_number(client, file_path, marker, password=None):
         return None
 
 
+def execute_command(client, command, password=None):
+    command = command.replace("<q>", '\\"')
+
+    if password is not None:
+        command = command.replace('<password>', password)
+
+    if values.DryRun is True:
+        logging.info(f'Dry run, command: {command}')
+    else:
+        try:
+            logging.debug(f'Running command: {command}')
+            stdin, stdout, stderr = client.exec_command(command, get_pty=True)
+            stdout.read()
+            error = stderr.read()
+            if error:
+                logging.error(f'Error running command: {error}')
+        except Exception as e:
+            logging.error(f'Failed to execute command - {e}')
+
+
 def update_env_vars(client, file_path, commands, markers, password=None):
     for i, marker in enumerate(markers):
         line_num = find_line_number(client, file_path, marker, password)
         if line_num is not None:
             commands[i] = commands[i].replace('<line>', str(line_num))
             logging.info(f"Updated command: {commands[i]}")
-            stdin, stdout, stderr = client.exec_command(commands[i], get_pty=True)
-            stdout.read()
-            error = stderr.read()
-            if error:
-                logging.error(f"Error running command: {error}")
+            execute_command(client, commands[i], password)
 
 
 def ssh_server(hostname, username, port, commands, password=None, pkey=None, markers=None):
@@ -81,26 +97,10 @@ def ssh_server(hostname, username, port, commands, password=None, pkey=None, mar
 
         if markers is not None:
             update_env_vars(client, commands[0].split()[-1], commands, markers, password)
-
-        logging.info(f'Executing commands on {hostname}')
-        for command in commands:
-            command = command.replace("<q>", '\\"')
-
-            if password is not None:
-                command = command.replace('<password>', password)
-
-            if values.DryRun is True:
-                logging.info(f'Dry run, {hostname} | ssh command: {command}')
-            else:
-                try:
-                    logging.debug(f'Running command: {command}')
-                    stdin, stdout, stderr = client.exec_command(command, get_pty=True)
-                    stdout.read()
-                    error = stderr.read()
-                    if error:
-                        logging.error(f'Error running command: {error}')
-                except Exception as e:
-                    logging.error(f'Failed to write key to {hostname} - {e}')
+        else:
+            logging.info(f'Executing commands on {hostname}')
+            for command in commands:
+                execute_command(client, command, password)
     except Exception as e:
         logging.error(f'Error with SSH connection: {e}')
         raise e
