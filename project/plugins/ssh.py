@@ -103,7 +103,6 @@ def ssh_server(hostname, username, port, commands, password=None, pkey=None, mar
                 execute_command(client, command, password)
     except Exception as e:
         logging.error(f'Error with SSH connection: {e}')
-        raise e
     finally:
         client.close()
 
