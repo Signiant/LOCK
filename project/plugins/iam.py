@@ -302,12 +302,14 @@ def store_password_parameter_store(configMap, username,  **key_args):
     if values.DryRun is True:
         logging.info('Dry run: store_key_parameter_store')
     else:
+        key_id = key_args.get('key', configMap['Global']['parameter_store']['KeyId'])
+
         client.put_parameter(
             Name='LOCK.'+username.upper(),
             Description='modified by LOCK',
             Value='Username: ' + values.user_password[0] + ' Password: ' + values.user_password[1],
             Type='SecureString',
-            KeyId=configMap['Global']['parameter_store']['KeyId'],
+            KeyId=key_id,
             Overwrite=True
         )
         logging.info('      '+username + ' username and password written to parameter store.')
