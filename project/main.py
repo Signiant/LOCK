@@ -12,6 +12,8 @@ import importlib
 import logging
 import logging.handlers
 import os
+import re
+import subprocess
 import sys
 import yaml
 from project.plugins import iam
@@ -25,6 +27,51 @@ def update_access_key(key):
 
 def set_DryRun(bool):
     values.DryRun = bool
+
+
+def check_for_placeholders(group_name, group):
+    if group_name == "env":
+        placeholders = {}
+        for name, value in group.items():
+            if type(value) is list:
+                if type(value) is str and re.match("<.*>", value):
+                    if name not in placeholders:
+                        placeholders[name] = []
+                    placeholders[name].append(value)
+            else:
+                if type(value) is str and re.match("<.*>", value):
+                    placeholders[name] = value
+    else:
+        placeholders = []
+        for value in group:
+            if type(value) is str and re.match("<.*>", value):
+                placeholders.append(value)
+    return placeholders
+
+
+def verify_parameters_set(required_parameters):
+    missing_parameters = {}
+    for group_name, group in required_parameters.items():
+        placeholders = check_for_placeholders(group_name, group)
+        if len(placeholders) > 0:
+            missing_parameters[group_name] = placeholders
+    return missing_parameters
+
+
+def export_environment_variables(**kwargs):
+    for name, value in kwargs.items():
+        os.environ[name] = str(value)
+
+
+def verify_vpn_enabled():
+    logging.info("Checking if connected to VPN...")
+    response = subprocess.run(["ifconfig", "ppp0"], capture_output=True, text=True)
+    code = response.returncode
+    if code != 0:
+        logging.error("Please confirm that you are connected to the VPN.")
+        sys.exit(1)
+    else:
+        logging.info("User is connected to VPN (interface ppp0). LOCK will continue.")
 
 
 def readConfigFile(path):
@@ -74,6 +121,18 @@ def main():
     rootLogger.addHandler(consoleHandler)
 
     configMap = readConfigFile(args.config)
+
+    if "RequiredParameters" in configMap:
+        missing_parameters = verify_parameters_set(configMap["RequiredParameters"])
+        if len(missing_parameters) > 0:
+            logging.error(f"Required parameters are missing:\n{yaml.safe_dump(missing_parameters, indent=4)}")
+            sys.exit(1)
+
+        if configMap["RequiredParameters"].get("env"):
+            export_environment_variables(**configMap["RequiredParameters"]["env"])
+
+    if os.getenv("VPN_REQUIRED", "False").lower() == "true":
+        verify_vpn_enabled()
 
     # args.dryRun = True
     username = args.user
