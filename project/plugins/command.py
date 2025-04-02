@@ -12,7 +12,7 @@ def run_command(configMap, username,  **key_args):
         command = command.split()
 
         if values.DryRun is True:
-            logging.info('Dry run of command:' + command)
+            logging.info(f'User {username}: Dry run of command:' + command)
         else:
             call(command)
 
@@ -23,4 +23,4 @@ def set_environment_variables(configMap, username,  **key_args):
 
 
 def print_instructions(configMap, username, **key_args):
-   logging.info(key_args.get('instructions'))
+   logging.info(f"User {username}: {key_args.get('instructions')}")

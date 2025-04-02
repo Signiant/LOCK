@@ -26,12 +26,12 @@ def update_credential(configMap, username,  **key_args):
                 'password': values.access_key[1]
             }
             if values.DryRun is True:
-                logging.info('      Dry run: ' + jenkins_url)
+                logging.info(f'User {username}: Dry run: ' + jenkins_url)
             else:
                 try:
                     creds[creds_description1] = UsernamePasswordCredential(cred_dict)
-                    logging.info('      Key written to ' + jenkins_url )
+                    logging.info(f'User {username}: Key written to ' + jenkins_url )
                 except:
-                    logging.error('     Key write failed at: ' + jenkins_url )
+                    logging.error(f'User {username}: Key write failed at: ' + jenkins_url )
         except:
-            logging.error('     ***** Exception trying to modify Key at %s - Key may need to be updated manually' % jenkins_url )
+            logging.error(f'User {username}: Exception trying to modify Key at %s - Key may need to be updated manually' % jenkins_url )

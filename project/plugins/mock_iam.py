@@ -15,4 +15,4 @@ def get_new_key(configMap, username,  **kwargs):
             print('                           New AccessKey: ' + str(new_key))
         return new_key
     else:
-        logging.info('Dry run of get new key')
+        logging.info(f'User {username}: Dry run of get new key')

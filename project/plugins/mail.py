@@ -28,10 +28,10 @@ def mail_message(configMap, username,  **key_args):
     msg = MailMessage(from_email=mail_from, to_emails=[email_to_addr], cc_emails=mail_cc, subject=email_subject, template=template)
 
     if values.DryRun is True:
-        logging.info('Dry run: mail_message; ' + content_title)
+        logging.info(f'User {username}: Dry run: mail_message; ' + content_title)
     else:
-        send_ses(configMap, msg)
-        logging.info("Notification email sent to " + key_args.get('mail_to') + ' cc: ' + str(mail_cc))
+        send_ses(username, configMap, msg)
+        logging.info(f"User {username}: Notification email sent to " + key_args.get('mail_to') + ' cc: ' + str(mail_cc))
 
 
 class EmailTemplate():
@@ -96,7 +96,7 @@ class MailMessage(object):
         return msg
 
 
-def send_ses(config_map, mail_msg):
+def send_ses(username, config_map, mail_msg):
     if values.profile is not None:
         session = boto3.Session(profile_name=values.profile, region_name='us-east-1')
         ses = session.client('ses')
@@ -107,4 +107,4 @@ def send_ses(config_map, mail_msg):
         ses.send_raw_email(RawMessage={'Data': mail_msg.get_message().as_string()})
     except ClientError as e:
         error_message = e.response['Error']['Message']
-        logging.error(f'Error sending message: {error_message}')
+        logging.error(f'User {username}: Error sending message: {error_message}')

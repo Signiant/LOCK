@@ -51,9 +51,13 @@ def validate_keys(username, all_users, configMap):
         delete_old_key(user_data, configMap, owner, key, prompt)
 
 
-def rotate_update(config_map, user_data, username, ssh_username=None, ssh_password=None):
+def rotate_update(user_data, config_map, username=None, ssh_username=None, ssh_password=None):
     update_access_key(('', ''))
-    modules = user_data['plugins']
+    if username is None:
+        username = (next(iter(user_data)))
+        modules = user_data[username]['plugins']
+    else:
+        modules = user_data['plugins']
     for plugin in modules:
         my_plugin = importlib.import_module('project.plugins.' + list(plugin.keys())[0])
         plugin = plugin.get(list(plugin.keys())[0])
@@ -76,12 +80,9 @@ def rotate_update(config_map, user_data, username, ssh_username=None, ssh_passwo
 
 def rotate_keys(username, all_users, configMap, user_data, ssh_username, ssh_password):
     if username == 'all':
-        for user_data in all_users:
-            username = (next(iter(user_data)))
-            user_data = user_data.get(username)
-            rotate_update(configMap, user_data, username, ssh_username, ssh_password)
+        utils.run_threads(all_users, rotate_update, configMap, None, ssh_username, ssh_password)
     else:
-        rotate_update(configMap, user_data, username, ssh_username, ssh_password)
+        rotate_update(user_data, configMap, username, ssh_username, ssh_password)
 
 
 def list_keys_for_user(user_data, configMap):

@@ -23,11 +23,11 @@ def set_secret_manager(configMap, username,  **key_args):
     try:
         client = secretmanager.SecretManagerServiceClient.from_service_account_json(auth)
     except Exception as e:
-        logging.error("Error: {0}".format(e))
+        logging.error(f"User {username}: Error: {e}")
         return
 
     if values.DryRun is True:
-        logging.info('Dry run ')
+        logging.info(f'User {username}: Dry run ')
     else:
         # Build the resource name of the parent secret.
         try: 
@@ -37,26 +37,26 @@ def set_secret_manager(configMap, username,  **key_args):
             print(parent_access, payload_access)
             data_access = {"parent": parent_access, "payload": {"data": payload_access}}
             response = client.add_secret_version(request=data_access)
-            logging.debug("Response: {0}".format(response))
+            logging.debug(f"User {username}: Response: {response}")
         except Exception as e:
-            logging.error("     ***** Exception trying to update Google Access Key - Key may need to be updated manually. Exception: {0}".format(e))
+            logging.error(f"User {username}: Exception trying to update Google Access Key - Key may need to be updated manually. Exception: {e}")
             return
         try: 
             parent_secret = client.secret_path(key_args.get('project_id'), key_args.get('key_secret'))
             payload_secret = values.access_key[1].encode('UTF-8')
             data_secret = {"parent": parent_secret, "payload": {"data": payload_secret}}
             response = client.add_secret_version(request=data_secret)
-            logging.debug("Response: {0}".format(response))
+            logging.debug(f"User {username}: Response: {response}")
         except Exception as e:
-            logging.error("     ***** Exception trying to update Google Secret Key - Key may need to be updated manually. Exception: {0}".format(e))
+            logging.error(f"User {username}: Exception trying to update Google Secret Key - Key may need to be updated manually. Exception: {e}")
             return
 
-        logging.info("      Access key and Secret key written to Secret Manager")
+        logging.info(f"User {username}: Access key and Secret key written to Secret Manager")
         pass
 
 
-def wait_for_operation(compute, project, region, operation):
-    logging.info("      Starting rolling update for {0}".format(project))
+def wait_for_operation(username, compute, project, region, operation):
+    logging.info(f"User {username}: Starting rolling update for {project}")
     while True:
         result = compute.regionOperations().get(
             project=project,
@@ -64,7 +64,7 @@ def wait_for_operation(compute, project, region, operation):
             operation=operation).execute()
 
         if result['status'] == 'DONE':
-            logging.info('      Done')
+            logging.info(f'User {username}: Done')
             if 'error' in result:
                 raise Exception(result['error'])
             return result
@@ -75,22 +75,22 @@ def wait_for_operation(compute, project, region, operation):
 def rotate_instance_groups(configMap, username,  **key_args):
     auth = configMap['Global']['google_credentials']['client_cred']
     regions = key_args.get('regions')
-    rotate_gcp_instance_group(auth, regions, 2)
+    rotate_gcp_instance_group(username, auth, regions, 2)
 
 
 def rotate_fg_instance_groups(configMap, username,  **key_args):
     auth = configMap['Global']['google_credentials']['fg_cred']
     regions = key_args.get('regions')
-    rotate_gcp_instance_group(auth, regions, 3)
+    rotate_gcp_instance_group(username, auth, regions, 3)
 
 
-def rotate_gcp_instance_group(auth, regions, max_unavailable):
+def rotate_gcp_instance_group(username, auth, regions, max_unavailable):
     credentials = service_account.Credentials.from_service_account_file(auth)
     # authenticate with compute api
     try:
         compute = build('compute', 'v1', credentials=credentials)
     except Exception as e:
-        logging.error("     ***** Exception trying to authenticate with google: {0}".format(e))
+        logging.error(f"User {username}: Exception trying to authenticate with google: {e}")
         return
     logging.debug("Authorized")
     for item in regions:
@@ -102,9 +102,9 @@ def rotate_gcp_instance_group(auth, regions, max_unavailable):
             instance_group_list = compute.regionInstanceGroups().list(project=project, region=region).execute()
             instance_group = instance_group_list['items'][0]['name']
         except Exception as e:
-            logging.error("     ***** Unable to retrieve intsance group: {0}".format(e))
+            logging.error(f"User {username}: Unable to retrieve intsance group: {e}")
             return
-        logging.debug("Project: {0} Instance_group {1} Region {2}".format(project, instance_group, region))
+        logging.debug(f"User {username}: Project: {project} Instance_group {instance_group} Region {region}")
 
         # retrieve instance template in use from project (this case is 1 regional instance manager in project)
         try:
@@ -113,9 +113,9 @@ def rotate_gcp_instance_group(auth, regions, max_unavailable):
                 region=region).execute()
             instance_template = project_list['items'][0]['versions'][0]['instanceTemplate']
         except Exception as e:
-            logging.error("     ***** Unable to retrieve current instance template: {0}".format(e))
+            logging.error(f"User {username}: Unable to retrieve current instance template: {e}")
             return 
-        logging.debug("template: {0}".format(project_list['items'][0]['versions'][0]['instanceTemplate']))
+        logging.debug(f"User {username}: template: {project_list['items'][0]['versions'][0]['instanceTemplate']}")
         # set version to current datetime
         version = str(datetime.now())
         # create body for patch update
@@ -142,7 +142,7 @@ def rotate_gcp_instance_group(auth, regions, max_unavailable):
 
         # TODO Modify this log message to be more informative
         if values.DryRun:
-            logging.info(f"Dry run. Instance group {instance_group} will not be rotated.")
+            logging.info(f"User {username}: Dry run. Instance group {instance_group} will not be rotated.")
             return
 
         # run rolling update to get new keys
@@ -152,9 +152,9 @@ def rotate_gcp_instance_group(auth, regions, max_unavailable):
                 region=region,
                 instanceGroupManager=instance_group,
                 body=body).execute()
-            wait_for_operation(compute, project, region, operation['name'])
+            wait_for_operation(username, compute, project, region, operation['name'])
         except Exception as e:
-            logging.error("     ***** Unable to update instance group: {0}".format(e))
+            logging.error(f"User {username}: Unable to update instance group: {e}")
             return
 
 
@@ -164,11 +164,11 @@ def update_encrypted_secret(configMap, username,  **key_args):
     try:
         credentials = service_account.Credentials.from_service_account_file(auth)
     except Exception as e:
-        logging.error("Error: {0}".format(e))
+        logging.error(f"User {username}: Error: {e}")
         return
 
     if values.DryRun is True:
-        logging.info('Dry run ')
+        logging.info(f'User {username}: Dry run ')
     else:
 
         try:
@@ -176,8 +176,7 @@ def update_encrypted_secret(configMap, username,  **key_args):
             storage_client = storage.Client(key_args.get('project_id'), credentials=credentials)
 
         except Exception as e:
-            logging.error(
-                "     ***** Exception trying to update flight-gateway cred - Key may need to be updated manually. Exception: {0}".format(e))
+            logging.error(f"User {username}: Exception trying to update flight-gateway cred - Key may need to be updated manually. Exception: {e}")
             return
         # Value='New Key Id: ' + values.access_key[0]+' New Secret Key: '+values.access_key[1]
         # print(Value)
@@ -193,8 +192,7 @@ def update_encrypted_secret(configMap, username,  **key_args):
                                                    key_args.get('key_ring_id'),
                                                    key_args.get('key_id'), aws_cred)
         except Exception as e:
-            logging.error(
-                "     ***** Exception trying to encrypt flight-gateway cred Exception: {0}".format(e))
+            logging.error(f"User {username}: Exception trying to encrypt flight-gateway cred Exception: {0}")
             return
 
         temp_dir = tempfile.gettempdir()
@@ -206,10 +204,9 @@ def update_encrypted_secret(configMap, username,  **key_args):
 
         try:
             # save that file to the storage under gcp path /project/flight-gateway/storage/...
-            upload_blob(storage_client, key_args.get('bucket_name'), encrypted_file_path, key_args.get('file_name'))
+            upload_blob(username, storage_client, key_args.get('bucket_name'), encrypted_file_path, key_args.get('file_name'))
         except Exception as e:
-            logging.error(
-                "     ***** Exception trying to upload encrypted cred to gcp bucket. Exception: {0}".format(e))
+            logging.error(f"User {username}: Exception trying to upload encrypted cred to gcp bucket. Exception: {e}")
             return
 
         # delete local encrypted file.
@@ -267,7 +264,7 @@ def crc32c(data):
     return crc32c_fun(six.ensure_binary(data))
 
 
-def upload_blob(storage_client, bucket_name, source_file_name, destination_blob_name):
+def upload_blob(username, storage_client, bucket_name, source_file_name, destination_blob_name):
     """Uploads a file to the bucket."""
     # bucket_name = "fgw-deployment-bucket"
     # source_file_name = "local/path/to/file"
@@ -278,4 +275,4 @@ def upload_blob(storage_client, bucket_name, source_file_name, destination_blob_
 
     blob.upload_from_filename(source_file_name)
 
-    logging.info("File {} uploaded to {}.".format(source_file_name, destination_blob_name))
+    logging.info(f"User {username}: File {source_file_name} uploaded to {destination_blob_name}.")

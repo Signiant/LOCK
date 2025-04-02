@@ -47,18 +47,18 @@ def rotate_vms(configMap, username,  **key_args):
                                 if len (result.instance_view.statuses) > 1 and 'running' in result.instance_view.statuses[1].display_status and result.instance_view.computer_name:
                                     to_rotate.append(result.instance_view.computer_name)
                                 else:
-                                    logging.warning(f'{resource.name} Not in RUNNING state - skipping')
+                                    logging.warning(f'User {username}: {resource.name} Not in RUNNING state - skipping')
                             except msrestazure.azure_exceptions.CloudError as e:
                                 if 'not found' in e.message:
-                                    logging.warning(f'{resource.name} Not Found - skipping')
+                                    logging.warning(f'User {username}: {resource.name} Not Found - skipping')
 
-        logging.info(f'Found the following VMs: {to_rotate}')
+        logging.info(f'User {username}: Found the following VMs: {to_rotate}')
         # Build dns names
         for vm in to_rotate:
             markers = []
             commands = []
             key_args['hostname'] = key_args.get('f_host').replace('<SERVER>', vm)
-            logging.info('      Writing key to '+key_args['hostname'])
+            logging.info(f'User {username}: Writing key to '+key_args['hostname'])
             for pkey in key_args.get('pkeys'):
                 if region.replace('-', '') in pkey:
                     key_args['pkey'] = pkey
@@ -82,11 +82,11 @@ def set_key_vault(configMap, username,  **key_args):
     client = SecretClient(vault_url=key_vault_uri, credential=credential, logging_enable=False)
 
     if values.DryRun is True:
-        logging.info('Dry run ')
+        logging.info(f'User {username}: Dry run ')
     else:
         client.set_secret(key_args.get('key_name'), values.access_key[0], logging_enable=False)
         client.set_secret(key_args.get('key_secret'), values.access_key[1], logging_enable=False)
-        logging.info("      Access key and Secret key written to key vault")
+        logging.info(f"User {username}: Access key and Secret key written to key vault")
         pass
 
 
@@ -107,15 +107,15 @@ def update_pipeline_service_connection(configMap, username,  **key_args):
                                                                                              endpoint_id=endpoint)
 
             if service_endpoints_details:
-                logging.info(f'Retrieved endpoint details for {service_endpoints_details.name}')
+                logging.info(f'User {username}: Retrieved endpoint details for {service_endpoints_details.name}')
                 new_service_endpoint = service_endpoints_details
                 if values.DryRun is True:
-                    logging.info('Dry run ')
+                    logging.info(f'User {username}: Dry run ')
                 else:
                     # Update the ACCESS Key and Secret
                     new_service_endpoint.authorization.parameters['username'] = values.access_key[0]
                     new_service_endpoint.authorization.parameters['password'] = values.access_key[1]
                     # Now update the service endpoint
-                    logging.info(f'Attempting to update credentials for {new_service_endpoint.name}')
+                    logging.info(f'User {username}: Attempting to update credentials for {new_service_endpoint.name}')
                     service_endpoint_client.update_service_endpoint(new_service_endpoint, endpoint)
-                    logging.info(f"      Service Connection {new_service_endpoint.name} Updated")
+                    logging.info(f"User {username}: Service Connection {new_service_endpoint.name} Updated")

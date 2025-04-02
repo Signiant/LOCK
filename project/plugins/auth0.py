@@ -33,11 +33,11 @@ def rotate_auth0_key(configMap, username, **key_args):
     data = json.dumps(data)
     header_auth = {**auth, **headers}
     if values.DryRun is True:
-        logging.info('Dry run, patch Auth0:' + data)
+        logging.info(f'User {username}: Dry run, patch Auth0:' + data)
     else:
         response = requests.patch(key_args.get('url_api') + 'emails/provider', headers=header_auth, data=data)
         if response.status_code == 200:
-            logging.info("      Auth0 email provider access key updated")
+            logging.info(f"User {username}: Auth0 email provider access key updated")
         else:
-            logging.error("     Auth0 key update has not completed")
+            logging.error(f"User {username}: Auth0 key update has not completed")
 

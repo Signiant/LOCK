@@ -22,13 +22,13 @@ def _log_and_print_to_console(msg, log_level='info'):
     log_func[log_level.lower()](msg)
 
 
-def set_param_in_region(config_map,region, parameter, value, value_is_file=False, description=None, encrypt=False, key=None):
+def set_param_in_region(username, config_map,region, parameter, value, value_is_file=False, description=None, encrypt=False, key=None):
     if not region:
-        _log_and_print_to_console("ERROR: You must supply a region", 'error')
+        _log_and_print_to_console(f"User {username}: You must supply a region", 'error')
         sys.exit(1)
 
     if not value:
-        _log_and_print_to_console("ERROR: You must supply a value for the parameter", 'error')
+        _log_and_print_to_console(f"User {username}: You must supply a value for the parameter", 'error')
         sys.exit(1)
 
     return_value = None
@@ -41,10 +41,10 @@ def set_param_in_region(config_map,region, parameter, value, value_is_file=False
         type = 'String'
 
     if value_is_file and not os.path.exists(value):
-        _log_and_print_to_console("ERROR: File Value provided, but file does not exist", 'error')
+        _log_and_print_to_console(f"User {username}: File Value provided, but file does not exist", 'error')
         sys.exit(1)
     if values.DryRun is True:
-        logging.info('Dry run of put_parameter')
+        logging.info(f'User {username}: Dry run of put_parameter')
         result = {}
     else:
         if description:
@@ -81,11 +81,11 @@ def set_param_in_region(config_map,region, parameter, value, value_is_file=False
     return return_value
 
 
-def set_paramameter(config_map, region_list, param_name, value, value_is_file=False, description=None, encrypt=False, key=None):
+def set_paramameter(username, config_map, region_list, param_name, value, value_is_file=False, description=None, encrypt=False, key=None):
     result = {}
     for region in region_list:
-        logging.debug("Checking region: " + region)
-        result[region] = set_param_in_region(config_map, region, param_name, value, value_is_file, description, encrypt, key)
+        logging.debug(f"User {username}: Checking region: " + region)
+        result[region] = set_param_in_region(username, config_map, region, param_name, value, value_is_file, description, encrypt, key)
     return result
 
 
@@ -98,8 +98,8 @@ def set_param(config_map, username, **key_args):
     value = key_args.get('value').replace("<new_key_name>", values.access_key[0]).replace("<new_key_secret>", values.access_key[1])
 
     param_name = key_args.get('param_name')
-    logging.info(f'   Parameter Name: {param_name}')
-    result = set_paramameter(config_map, key_args.get('region_list'), param_name, value, value_is_file=False,
+    logging.info(f'User {username}: Parameter Name: {param_name}')
+    result = set_paramameter(username, config_map, key_args.get('region_list'), param_name, value, value_is_file=False,
                              description=None, encrypt=encrypt, key=key_args.get('key'))
     for region in result:
-        logging.info('      '+region + ': ' + ("Success" if result[region] == 200 else "Failed"))
+        logging.info(f'User {username}: '+region + ': ' + ("Success" if result[region] == 200 else "Failed"))
