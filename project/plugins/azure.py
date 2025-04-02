@@ -44,7 +44,7 @@ def rotate_vms(configMap, username,  **key_args):
                                 result = compute_client.virtual_machines.get(resource_group_name,
                                                                             resource.name,
                                                                             expand='instanceView')
-                                if len (result.instance_view.statuses) > 1 and 'running' in result.instance_view.statuses[1].display_status:
+                                if len (result.instance_view.statuses) > 1 and 'running' in result.instance_view.statuses[1].display_status and result.instance_view.computer_name:
                                     to_rotate.append(result.instance_view.computer_name)
                                 else:
                                     logging.warning(f'{resource.name} Not in RUNNING state - skipping')
