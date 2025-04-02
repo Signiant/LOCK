@@ -59,14 +59,12 @@ def __put_variable(api_token, workspace, variable_uuid, variable_details):
     response = requests.put(url, data=payload, headers=headers)
     if response.status_code != 200:
         logging.error(f'Error updating Bitbucket variable {response.status_code}: {response.text}')
-    return None
 
 
 def __update_variable(api_token, workspace, variable_uuid, variable_value):
     variable_details = __get_variable(api_token, workspace, variable_uuid)
     variable_details['value'] = variable_value
     __put_variable(api_token, workspace, variable_uuid, variable_details)
-    return None
 
 
 def update_variables(config_map, username, **kwargs):
@@ -81,10 +79,12 @@ def update_variables(config_map, username, **kwargs):
     access_key_uuid = kwargs.get('access_key_uuid')
     secret_access_key_uuid = kwargs.get('secret_key_uuid')
 
+    if values.DryRun:
+        logging.info("Dry run. No Bitbucket workspace variables will be updated.")
+        return None
+
     logging.info(f'Updating access key variable for {username}')
     __update_variable(api_token, workspace, access_key_uuid, aws_access_key_id)
 
     logging.info(f'Updating secret access key variable for {username}')
     __update_variable(api_token, workspace, secret_access_key_uuid, aws_secret_access_key)
-
-    return None

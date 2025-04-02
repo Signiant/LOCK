@@ -155,7 +155,18 @@ def get_new_key(configMap, username, **kwargs):
             logging.error('      There are already two (active) keys present - cannot continue')
             return None
     else:
-        logging.info('Dry run of get new key')
+        logging.info('Dry run of get new key.')
+        # setup connection
+        client = get_iam_client(configMap, **kwargs)
+        # get existing keys
+        existing_keys = get_access_keys(client, username)
+
+        logging.info(f"{username} has {len(existing_keys)} keys")
+
+        if len(existing_keys) == 1:
+            return existing_keys[0]
+        else:
+            return None
 
 
 # validate that new key is being used and delete the old unused key otherwise do nothing and advise the user
@@ -219,17 +230,22 @@ def validate_new_key(configMap, username, user_data):
             logging.info("   New key (%s) has not been used. Check if service is properly running or if the key is properly assigned to the service." % newkeyname)
         else:
             logging.info("   New key (%s) was last used: %s" % (newkeyname, str(lastused)))
-        yes = {'yes', 'y', 'ye', ''}
-        no = {'no', 'n'}
-        choice = None
-        while choice not in yes and choice not in no:
 
-            choice = input('   Delete the old access key:'+ oldkeyname +'? (y/n) ' ).lower()
-            if choice in yes:
-                delete_old_key(client, username, keys[old_key_index].get('AccessKeyId'))
-                logging.info('      '+username + ': Old key deleted.')
-            elif choice in no:
-                logging.info('   Key was not deleted.')
+        if values.DryRun:
+            logging.info("Dry run. No keys will be deleted.")
+            # TODO Modify handling of user input due to multithreading
+        else:
+            yes = {'yes', 'y', 'ye', ''}
+            no = {'no', 'n'}
+            choice = None
+            while choice not in yes and choice not in no:
+
+                choice = input('   Delete the old access key:'+ oldkeyname +'? (y/n) ' ).lower()
+                if choice in yes:
+                    delete_old_key(client, username, keys[old_key_index].get('AccessKeyId'))
+                    logging.info('      '+username + ': Old key deleted.')
+                elif choice in no:
+                    logging.info('   Key was not deleted.')
     else:
         logging.info('   Only one key available - skipping deletion of old key.')
 
