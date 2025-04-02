@@ -8,7 +8,7 @@ from project import values
 logging.getLogger('paramiko').setLevel(logging.CRITICAL)
 
 
-def load_ssh_key(pkey_path, password=None):
+def load_ssh_key(pkey_path, password):
     try:
         with open(pkey_path, 'r') as key_file:
             key_data = key_file.read()
@@ -88,12 +88,17 @@ def ssh_server(hostname, username, port, commands, password=None, pkey=None, mar
             client.connect(hostname, port=port, username=username, password=password, allow_agent=False,
                            look_for_keys=False)
         else:
-            key = load_ssh_key(pkey, password)
-            if key is None:
-                logging.error("Failed to load the SSH key.")
-                return
+            connect_args = {}
+            if password is not None:
+                key = load_ssh_key(pkey, password)
+                if key is None:
+                    logging.error(f"Error connecting to {hostname}: Failed to load the SSH key at {pkey}")
+                    return
+                connect_args["pkey"] = key
+            else:
+                connect_args["key_filename"] = pkey
             logging.info('Authenticating with public key')
-            client.connect(hostname, port=port, username=username, pkey=key)
+            client.connect(hostname, port=port, username=username, **connect_args)
 
         if markers is not None:
             update_env_vars(client, commands[0].split()[-1], commands, markers, password)
