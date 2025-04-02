@@ -64,7 +64,7 @@ def delete_prompt(configMap, username, client, key, delete_special):
         else:
             choice = input('There are 2 keys. Delete the old access key: %s ? (y/n) \n' % key)
         if choice in yes:
-            delete_old_key(client, username, key)
+            client.delete_access_key(UserName=username, AccessKeyId=key)
             logging.info("      "+username + ': Old key deleted')
         elif choice in no:
             logging.info('      Key was not deleted.')
@@ -116,8 +116,34 @@ def create_key(client, username):
         return None, None
 
 
-def delete_old_key(client, username, keyId):
-    return client.delete_access_key(UserName=username, AccessKeyId=keyId)
+def delete_old_key(user_data, configMap, username, keyId, prompt):
+    iam_data = user_data.get('plugins')[0].get('iam')[0].get('get_new_key')
+    aws_profile = None
+    if iam_data:
+        if 'credential_profile' in iam_data:
+            aws_profile = iam_data.get('credential_profile')
+    if aws_profile:
+        kwargs = {}
+        kwargs['credential_profile'] = aws_profile
+        client = get_iam_client(configMap, **kwargs)
+    else:
+        client = get_iam_client(configMap)
+
+    deletion_prompt = prompt + "\n" + '   Delete the old access key: ' + keyId + '? (y/n) '
+    yes = {'yes', 'y', 'ye', ''}
+    no = {'no', 'n'}
+    choice = None
+    while choice not in yes and choice not in no:
+
+        choice = input(deletion_prompt).lower()
+        if choice in yes:
+            if values.DryRun:
+                logging.info(f"Dry run. {keyId} was not deleted.")
+            else:
+                client.delete_access_key(UserName=username, AccessKeyId=keyId)
+                logging.info(username + ': Old key deleted.')
+        elif choice in no:
+            logging.info(username + ': Key was not deleted.')
 
 
 def key_last_used(client, keyId):
@@ -171,6 +197,7 @@ def get_new_key(configMap, username, **kwargs):
 
 # validate that new key is being used and delete the old unused key otherwise do nothing and advise the user
 def validate_new_key(configMap, username, user_data):
+    deletion_prompt = f'Key validation results for user: {username}'
     logging.info('Validating keys for user: %s' % username)
 
     iam_data = user_data.get('plugins')[0].get('iam')[0].get('get_new_key')
@@ -205,49 +232,40 @@ def validate_new_key(configMap, username, user_data):
 
         present = datetime.utcnow()
         present = pytz.utc.localize(present)
-        logging.debug('   Present time (UTC): %s' % str(present))
-        logging.debug('   Old key time (UTC): %s' % str(old_key_use_date))
+        logging.debug(f'User {username}: Present time (UTC): %s' % str(present))
+        logging.debug(f'User {username}: Old key time (UTC): %s' % str(old_key_use_date))
 
         if old_key_use_date:
             timediff = present - old_key_use_date
             timediff_hours = (timediff.days * 24) + (timediff.seconds / 3600)
-            logging.debug('   timediff: %s' % str(timediff))
-            logging.debug('   timdiff (hours): %s' % str(timediff_hours))
+            logging.debug(f'User {username}: timediff: %s' % str(timediff))
+            logging.debug(f'User {username}: timdiff (hours): %s' % str(timediff_hours))
 
         oldkeyname = keys[old_key_index].get('AccessKeyId')
         newkeyname = keys[new_key_index].get('AccessKeyId')
 
         if old_key_use_date:
-            logging.info('   Old key (%s) was last used: %s' % (oldkeyname,str(old_key_use_date)))
-            logging.debug('   Time diff in hours: %s' % str(timediff_hours))
+            deletion_prompt += "\n" + '   Old key (%s) was last used: %s' % (oldkeyname,str(old_key_use_date))
+            logging.info(f'User {username}: Old key (%s) was last used: %s' % (oldkeyname,str(old_key_use_date)))
+            logging.debug(f'User {username}: Time diff in hours: %s' % str(timediff_hours))
 
             if timediff_hours < configMap['Global']['key_validate_time_check']:
-                logging.warning('      Old key was used less than %s hours ago' % (str(configMap['Global']['key_validate_time_check'])))
+                deletion_prompt += "\n" + '      Old key was used less than %s hours ago' % (str(configMap['Global']['key_validate_time_check']))
+                logging.warning(f'User {username}: Old key was used less than %s hours ago' % (str(configMap['Global']['key_validate_time_check'])))
         else:
-            logging.warning("   Old key (%s) has not been used. Is it still needed?" % oldkeyname)
+            deletion_prompt += "\n" + "   Old key (%s) has not been used. Is it still needed?" % oldkeyname
+            logging.warning(f"User {username}: Old key (%s) has not been used. Is it still needed?" % oldkeyname)
 
         if lastused is None:
-            logging.info("   New key (%s) has not been used. Check if service is properly running or if the key is properly assigned to the service." % newkeyname)
+            deletion_prompt += "\n" + "   New key (%s) has not been used. Check if service is properly running or if the key is properly assigned to the service." % newkeyname
+            logging.info(f"User {username}: New key (%s) has not been used. Check if service is properly running or if the key is properly assigned to the service." % newkeyname)
         else:
-            logging.info("   New key (%s) was last used: %s" % (newkeyname, str(lastused)))
+            deletion_prompt += "\n" + "   New key (%s) was last used: %s" % (newkeyname, str(lastused))
+            logging.info(f"User {username}: New key (%s) was last used: %s" % (newkeyname, str(lastused)))
 
-        if values.DryRun:
-            logging.info("Dry run. No keys will be deleted.")
-            # TODO Modify handling of user input due to multithreading
-        else:
-            yes = {'yes', 'y', 'ye', ''}
-            no = {'no', 'n'}
-            choice = None
-            while choice not in yes and choice not in no:
-
-                choice = input('   Delete the old access key:'+ oldkeyname +'? (y/n) ' ).lower()
-                if choice in yes:
-                    delete_old_key(client, username, keys[old_key_index].get('AccessKeyId'))
-                    logging.info('      '+username + ': Old key deleted.')
-                elif choice in no:
-                    logging.info('   Key was not deleted.')
+        return oldkeyname, deletion_prompt
     else:
-        logging.info('   Only one key available - skipping deletion of old key.')
+        logging.info(f'User {username}: Only one key available - skipping deletion of old key.')
 
 
 def delete_iam_user(configMap, username, **key_args):

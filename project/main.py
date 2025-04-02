@@ -17,12 +17,12 @@ import subprocess
 import sys
 import yaml
 from project.plugins import iam
-from project.plugins.iam import validate_new_key, get_new_key, create_and_test_key, delete_older_key, get_iam_client
+from project.plugins.iam import validate_new_key, delete_old_key
 from project import values
 from project import utils
 
 
-def validate_keys_for_user(userdata, configMap, username):
+def validate_keys_for_user(userdata, configMap, username, keys_to_delete):
     username_to_validate = (next(iter(userdata)))
     if username != "all" and username != username_to_validate:
         return
@@ -30,7 +30,10 @@ def validate_keys_for_user(userdata, configMap, username):
     if user_data.get('plugins'):
         if user_data.get('plugins')[0].get('iam'):
             if 'get_new_key' in user_data.get('plugins')[0].get('iam')[0]:
-                validate_new_key(configMap, username_to_validate, user_data)
+                validation_result = validate_new_key(configMap, username_to_validate, user_data)
+                if validation_result is not None:
+                    old_key, prompt = validation_result
+                    keys_to_delete.append((username_to_validate, old_key, prompt))
             else:
                 logging.info(
                     f'   No get_new_key section for iam plugin for user {username_to_validate} - skipping')
@@ -41,7 +44,11 @@ def validate_keys_for_user(userdata, configMap, username):
 
 
 def validate_keys(username, all_users, configMap):
-    utils.run_threads(all_users, validate_keys_for_user, configMap, username)
+    keys_to_delete = []
+    utils.run_threads(all_users, validate_keys_for_user, configMap, username, keys_to_delete)
+    for owner, key, prompt in keys_to_delete:
+        user_data = [data for data in all_users if next(iter(data)) == owner][0][owner]
+        delete_old_key(user_data, configMap, owner, key, prompt)
 
 
 def rotate_update(config_map, user_data, username, ssh_username=None, ssh_password=None):
