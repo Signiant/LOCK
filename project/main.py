@@ -98,6 +98,8 @@ def list_keys(username, all_users, configMap):
 
 
 def update_access_key(key):
+    # TODO I need to make sure nothing breaks as each thread is currently accessing values.access_key.
+    #  This variable is currently only modified in this function.
     values.access_key = key
 
 
