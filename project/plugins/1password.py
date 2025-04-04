@@ -89,7 +89,7 @@ def validate_item_config(title: str, vault: str, category: str, value_type: str,
     return misconfigured_items
 
 
-def upsert_items(_, username, **kwargs):
+def upsert_items(_: dict, username: str, **kwargs: dict) -> None:
     items = kwargs.get("items")
 
     if items is None:
