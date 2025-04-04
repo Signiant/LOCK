@@ -140,7 +140,6 @@ def rotate_gcp_instance_group(username, auth, regions, max_unavailable):
             ]
         }
 
-        # TODO Modify this log message to be more informative
         if values.DryRun:
             logging.info(f"User {username}: Dry run. Instance group {instance_group} will not be rotated.")
             return
