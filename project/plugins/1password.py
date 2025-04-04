@@ -1,4 +1,4 @@
-from project import values
+from project import values as project_values
 
 import json
 import logging
@@ -10,7 +10,7 @@ def upsert_item(action: str, username: str, vault: str, category: str, title: st
 
     cmd = ["op", "item", action, "--vault", vault]
 
-    if values.DryRun:
+    if project_values.DryRun:
         cmd += ["--dry-run"]
 
     if action == "edit":
@@ -109,7 +109,7 @@ def upsert_items(_: dict, username: str, **kwargs: dict) -> None:
             logging.error(f"User {username}: Item {i + 1} with title {title} will be skipped due to an invalid config: {", ".join(misconfigured_items)}")
             continue
 
-        value = values.access_keys[username][0] if value_type == "key_id" else values.access_keys[username][1]
+        value = project_values.access_keys[username][0] if value_type == "key_id" else project_values.access_keys[username][1]
 
         code, output = get_item(vault, title)
         if code is None and output is None:
