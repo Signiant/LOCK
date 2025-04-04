@@ -161,8 +161,6 @@ def get_new_key(configMap, username, **kwargs):
         existing_keys = get_access_keys(client, username)
         # delete 'inactive' keys (and warn about unused active keys)
         delete_inactive_key(client, existing_keys, username)
-        # delete keys that have never been used (if any)
-        delete_older_key(configMap, username, client)
         # Get the keys again
         existing_keys = get_access_keys(client, username)
         if len(existing_keys) < 2:
@@ -178,7 +176,9 @@ def get_new_key(configMap, username, **kwargs):
             return new_key
         else:
             # There are still 2 keys present - can't create another one
-            logging.error(f'User {username}: There are already two (active) keys present - cannot continue')
+            logging.error(f'User {username}: There are already two (active) keys present - cannot continue. '
+                          f'Please re-run the script with the \'validate\' action for the user \'{username}\' before '
+                          f'retrying \'rotate\'.')
             return None
     else:
         logging.info(f'User {username}: Dry run of get new key.')
