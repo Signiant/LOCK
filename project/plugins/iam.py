@@ -283,7 +283,6 @@ def list_keys(configMap, username):
         for key in keys:
             response = (key_last_used(client, key.get('AccessKeyId')))
             key["Last Used"] = response.get('AccessKeyLastUsed').get('LastUsedDate')
-            print('')
             for i in key:
                 logging.info(f"User {username}: " + i + ': ' + str(key[i]))
 
