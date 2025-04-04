@@ -28,7 +28,7 @@ def mail_message(configMap, username,  **key_args):
     msg = MailMessage(from_email=mail_from, to_emails=[email_to_addr], cc_emails=mail_cc, subject=email_subject, template=template)
 
     if values.DryRun is True:
-        logging.info(f'User {username}: Dry run: mail_message; ' + content_title)
+        logging.info(f'User {username}: Dry run: mail_message;\n' + content_title)
     else:
         send_ses(username, configMap, msg)
         logging.info(f"User {username}: Notification email sent to " + key_args.get('mail_to') + ' cc: ' + str(mail_cc))
