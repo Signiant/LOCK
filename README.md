@@ -7,7 +7,7 @@ LOCK has 4 main modes that accept an IAM user as an argument or from a YAML conf
 
 - `list`: Show user keys with: Access Key ID, Status, Create Date, Last Used.
 - `rotate`: Rotates the AWS IAM key and update the key at set locations by running functions sequentially under plugins provided by the config file.
-- `validate`: Checks to see if the new key is being used, if it is delete the old key
+- `validate`: Checks to see if the new key is being used. If it is, delete the old key.
 - `getnewkey`: Rotate the AWS IAM Key
 
 ## Up and Running
@@ -16,10 +16,10 @@ LOCK has 4 main modes that accept an IAM user as an argument or from a YAML conf
 - Clone this repository
 - Run `python3 -m venv .env` to create a virtual environment
 - Run `source .env/bin/activate` to activate the virtual environment
-- Run `python3 -m pip install -r project/config/requirements.txt` to install the dependencies
+- Run `python3 -m pip install -r project/config/requirements.txt` to install the dependencies
 - Run from LOCK's root folder
 
-#
+
 ## Running LOCK from the Command Line
 
 To rotate keys from the command line, use `python3` to run the main script.

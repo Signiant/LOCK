@@ -5,7 +5,7 @@ import logging
 import subprocess
 
 
-def upsert_item(action: str, username: str, vault: str, category: str, title: str, value: str,  tags: str = None, custom_fields: list = None,  item: dict = None):
+def upsert_item(action: str, username: str, vault: str, category: str, title: str, value: str,  tags: str = None, custom_fields: list = None,  item: dict = None) -> None:
     logging.info(f"User {username}: Upserting item {title}...")
 
     cmd = ["op", "item", action, "--vault", vault]
@@ -46,7 +46,7 @@ def upsert_item(action: str, username: str, vault: str, category: str, title: st
         logging.info(f"User {username}: Successfully upserted {title}. Output of command:\n{response.stdout}")
 
 
-def get_item(vault: str, title: str):
+def get_item(vault: str, title: str) -> tuple:
     response = None
     cmd = ["op", "item", "get", "--format", "json", "--vault", vault, title]
 
@@ -63,7 +63,7 @@ def get_item(vault: str, title: str):
         return response.returncode, response.stdout
 
 
-def validate_item_config(title, vault, category, value_type, tags, custom_fields):
+def validate_item_config(title: str, vault: str, category: str, value_type: str, tags: str, custom_fields: list) -> list:
     misconfigured_items = []
 
     if title is None:
@@ -89,8 +89,7 @@ def validate_item_config(title, vault, category, value_type, tags, custom_fields
     return misconfigured_items
 
 
-# upsert_items(username: str, vault: str, category: str, title: str, value: str, tags: str, custom_fields: list)
-def upsert_items(configMap, username, **kwargs):
+def upsert_items(_, username, **kwargs):
     items = kwargs.get("items")
 
     if items is None:
