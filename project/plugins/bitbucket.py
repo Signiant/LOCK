@@ -68,8 +68,8 @@ def __update_variable(username, api_token, workspace, variable_uuid, variable_va
 
 
 def update_variables(config_map, username, **kwargs):
-    aws_access_key_id = values.access_key[0]
-    aws_secret_access_key = values.access_key[1]
+    aws_access_key_id = values.access_keys[username][0]
+    aws_secret_access_key = values.access_keys[username][1]
 
     api_token = __get_bitbucket_token(config_map, username, **kwargs)
     if not api_token:

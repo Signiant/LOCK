@@ -116,8 +116,8 @@ def ssh_server(username, hostname, ssh_username, port, commands, password=None, 
 def ssh_server_command(config_map, username, **key_args):
     list_of_commands = key_args.get('commands')
     list_of_commands = [
-        command.replace("<new_key_name>", values.access_key[0].replace("/", "\/")).replace("<new_key_secret>",
-                                                                                           values.access_key[1].replace(
+        command.replace("<new_key_name>", values.access_keys[username][0].replace("/", "\/")).replace("<new_key_secret>",
+                                                                                           values.access_keys[username][1].replace(
                                                                                                "/", "\/")) for command
         in list_of_commands]
 

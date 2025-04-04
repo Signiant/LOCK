@@ -153,7 +153,7 @@ def key_last_used(client, keyId):
 
 
 def get_new_key(configMap, username, **kwargs):
-    if values.access_key == ("", "") and values.DryRun is False:  # run only if user hasn't manually entered a key
+    if values.access_keys[username] == ("", "") and values.DryRun is False:  # run only if user hasn't manually entered a key
         from project.main import update_access_key
         # setup connection
         client = get_iam_client(configMap, **kwargs)
@@ -169,7 +169,7 @@ def get_new_key(configMap, username, **kwargs):
             # create a new key
             new_key = create_key(client, username)
             logging.info(f'User {username}: New key created for user')
-            update_access_key(new_key)
+            update_access_key(username, new_key)
             # TODO: Print secret key to log file even if hide_key is provided
             if values.hide_key is True:
                 logging.info(f'User {username}: New AccessKey: ' + str(new_key[0]))
@@ -357,10 +357,10 @@ def store_key_parameter_store(configMap, username,  **key_args):
         parameter_name = key_args.get('param_name', 'LOCK.'+username.upper())
         if key_args.get('value') is not None:
             # value defined by user as seen under mediashuttle-support-tool user in conig.yaml
-            parameter_value = key_args.get('value').replace("<new_key_name>", values.access_key[0]).replace("<new_key_secret>",values.access_key[1])
+            parameter_value = key_args.get('value').replace("<new_key_name>", values.access_keys[username][0]).replace("<new_key_secret>",values.access_keys[username][1])
         else:
             # Key ID: XXXXXX Secret Key: XXXX
-            parameter_value = 'Key Id: ' + values.access_key[0]+' Secret Key: '+values.access_key[1]
+            parameter_value = 'Key Id: ' + values.access_keys[username][0]+' Secret Key: '+values.access_keys[username][1]
         if key_args.get('key') is not None:
             key_id = key_args.get('key')
         else:

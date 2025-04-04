@@ -95,7 +95,7 @@ def set_param(config_map, username, **key_args):
     else:
         encrypt = False
 
-    value = key_args.get('value').replace("<new_key_name>", values.access_key[0]).replace("<new_key_secret>", values.access_key[1])
+    value = key_args.get('value').replace("<new_key_name>", values.access_keys[username][0]).replace("<new_key_secret>", values.access_keys[username][1])
 
     param_name = key_args.get('param_name')
     logging.info(f'User {username}: Parameter Name: {param_name}')

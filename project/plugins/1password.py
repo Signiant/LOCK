@@ -109,7 +109,7 @@ def upsert_items(_: dict, username: str, **kwargs: dict) -> None:
             logging.error(f"User {username}: Item {i + 1} with title {title} will be skipped due to an invalid config: {", ".join(misconfigured_items)}")
             continue
 
-        value = values.access_key[0] if value_type == "key_id" else values.access_key[1]
+        value = values.access_keys[username][0] if value_type == "key_id" else values.access_keys[username][1]
 
         code, output = get_item(vault, title)
         if code is None and output is None:

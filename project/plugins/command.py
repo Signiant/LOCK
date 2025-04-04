@@ -8,7 +8,7 @@ def run_command(configMap, username,  **key_args):
 
     list_of_commands = key_args.get('commands')
     for command in list_of_commands:
-        command = command.replace("<new_key_name>", values.access_key[0]).replace("<new_key_secret>", values.access_key[1])
+        command = command.replace("<new_key_name>", values.access_keys[username][0]).replace("<new_key_secret>", values.access_keys[username][1])
         command = command.split()
 
         if values.DryRun is True:

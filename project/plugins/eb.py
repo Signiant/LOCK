@@ -9,7 +9,7 @@ from project.plugins.iam import get_iam_session
 def handle_eb_update(configMap, username, **key_args):
 
         # Need to update the dcrp beanstalks
-        result = rotate_dcrp_credentials(username, values.access_key[0], values.access_key[1], key_args,configMap)
+        result = rotate_dcrp_credentials(username, values.access_keys[username][0], values.access_keys[username][1], key_args,configMap)
         if result:
             logging.info('Successfully updated ACCESS KEY for %s' % username)
         else:

@@ -52,12 +52,14 @@ def validate_keys(username, all_users, configMap):
 
 
 def rotate_update(user_data, config_map, username=None, ssh_username=None, ssh_password=None):
-    update_access_key(('', ''))
     if username is None:
         username = (next(iter(user_data)))
         modules = user_data[username]['plugins']
     else:
         modules = user_data['plugins']
+
+    update_access_key(username, ('', ''))
+
     for plugin in modules:
         my_plugin = importlib.import_module('project.plugins.' + list(plugin.keys())[0])
         plugin = plugin.get(list(plugin.keys())[0])
@@ -70,7 +72,7 @@ def rotate_update(user_data, config_map, username=None, ssh_username=None, ssh_p
             if ssh_password:
                 key_args['ssh_password'] = ssh_password
             method_to_call = getattr(my_plugin, list(method.keys())[0])  # get method name to run
-            logging.info("Running "+str(method_to_call)[:-15].lstrip('<') + "for " + username)
+            logging.info(f"User {username}: Running "+str(method_to_call)[:-15].lstrip('<') + "for " + username)
             result = method_to_call(config_map, username, **key_args)
             # TODO: Check result and abort remaining methods if one fails
             if 'get_new_key' in str(method_to_call) and not result:
@@ -97,10 +99,8 @@ def list_keys(username, all_users, configMap):
         iam.list_keys(configMap, username)
 
 
-def update_access_key(key):
-    # TODO I need to make sure nothing breaks as each thread is currently accessing values.access_key.
-    #  This variable is currently only modified in this function.
-    values.access_key = key
+def update_access_key(username, key):
+    values.access_keys[username] = key
 
 
 def set_DryRun(bool):
@@ -246,7 +246,7 @@ def main():
 
     # get manually entered key, if any
     if args.key is not None:
-        update_access_key(args.key)
+        update_access_key(username, args.key)
 
     if args.action == 'list':
         list_keys(username, all_users, configMap)

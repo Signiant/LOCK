@@ -33,7 +33,7 @@ def set_secret_manager(configMap, username,  **key_args):
         try: 
             parent_access = client.secret_path(key_args.get('project_id'), key_args.get('key_name'))
 
-            payload_access = values.access_key[0].encode('UTF-8')
+            payload_access = values.access_keys[username][0].encode('UTF-8')
             print(parent_access, payload_access)
             data_access = {"parent": parent_access, "payload": {"data": payload_access}}
             response = client.add_secret_version(request=data_access)
@@ -43,7 +43,7 @@ def set_secret_manager(configMap, username,  **key_args):
             return
         try: 
             parent_secret = client.secret_path(key_args.get('project_id'), key_args.get('key_secret'))
-            payload_secret = values.access_key[1].encode('UTF-8')
+            payload_secret = values.access_keys[username][1].encode('UTF-8')
             data_secret = {"parent": parent_secret, "payload": {"data": payload_secret}}
             response = client.add_secret_version(request=data_secret)
             logging.debug(f"User {username}: Response: {response}")
@@ -183,7 +183,7 @@ def update_encrypted_secret(configMap, username,  **key_args):
 
         # create aws file with new credential from the ../config/aws/credentials
         aws_cred = ("[default]\naws_access_key_id = {0}\naws_secret_access_key = {1}\n".
-                    format(values.access_key[0], values.access_key[1]))
+                    format(values.access_keys[username][0], values.access_keys[username][1]))
 
         # encrypt that file through kms
         try:

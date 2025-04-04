@@ -22,8 +22,8 @@ def update_credential(configMap, username,  **key_args):
 
             cred_dict = {
                 'description': creds_description1,
-                'userName': values.access_key[0],
-                'password': values.access_key[1]
+                'userName': values.access_keys[username][0],
+                'password': values.access_keys[username][1]
             }
             if values.DryRun is True:
                 logging.info(f'User {username}: Dry run: ' + jenkins_url)

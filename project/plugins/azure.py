@@ -84,8 +84,8 @@ def set_key_vault(configMap, username,  **key_args):
     if values.DryRun is True:
         logging.info(f'User {username}: Dry run ')
     else:
-        client.set_secret(key_args.get('key_name'), values.access_key[0], logging_enable=False)
-        client.set_secret(key_args.get('key_secret'), values.access_key[1], logging_enable=False)
+        client.set_secret(key_args.get('key_name'), values.access_keys[username][0], logging_enable=False)
+        client.set_secret(key_args.get('key_secret'), values.access_keys[username][1], logging_enable=False)
         logging.info(f"User {username}: Access key and Secret key written to key vault")
         pass
 
@@ -113,8 +113,8 @@ def update_pipeline_service_connection(configMap, username,  **key_args):
                     logging.info(f'User {username}: Dry run ')
                 else:
                     # Update the ACCESS Key and Secret
-                    new_service_endpoint.authorization.parameters['username'] = values.access_key[0]
-                    new_service_endpoint.authorization.parameters['password'] = values.access_key[1]
+                    new_service_endpoint.authorization.parameters['username'] = values.access_keys[username][0]
+                    new_service_endpoint.authorization.parameters['password'] = values.access_keys[username][1]
                     # Now update the service endpoint
                     logging.info(f'User {username}: Attempting to update credentials for {new_service_endpoint.name}')
                     service_endpoint_client.update_service_endpoint(new_service_endpoint, endpoint)

@@ -25,8 +25,8 @@ def write_s3_file(config_map, username, **key_args):
     file_path = key_args.get("file_path")
     client = get_s3_client(config_map)
 
-    file_contents = '%s\n%s\n' % (key_args.get('access_key').replace("<new_key_name>", values.access_key[0]),
-             key_args.get('secret_key').replace("<new_key_secret>", values.access_key[1]))
+    file_contents = '%s\n%s\n' % (key_args.get('access_key').replace("<new_key_name>", values.access_keys[username][0]),
+             key_args.get('secret_key').replace("<new_key_secret>", values.access_keys[username][1]))
 
     if values.DryRun is True:
         logging.info(f'User {username}: Dry run, upload file %s to s3 bucket %s' % (file_path, bucket))

@@ -28,8 +28,8 @@ def rotate_auth0_key(configMap, username, **key_args):
     response = requests.get(key_args.get('url_api') + 'emails/provider?fields=credentials%2Cname%2Cdefault_from_address%2Csettings%2Cenabled&include_fields=true', headers=auth)
     data = response.content.decode('utf8')
     data = json.loads(data)
-    data['credentials']['accessKeyId'] = values.access_key[0]
-    data['credentials']['secretAccessKey'] = values.access_key[1]
+    data['credentials']['accessKeyId'] = values.access_keys[username][0]
+    data['credentials']['secretAccessKey'] = values.access_keys[username][1]
     data = json.dumps(data)
     header_auth = {**auth, **headers}
     if values.DryRun is True:
