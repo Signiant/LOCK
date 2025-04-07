@@ -19,23 +19,24 @@ logging.getLogger("azure").setLevel(logging.CRITICAL)
 logging.getLogger("urllib3").setLevel(logging.CRITICAL)
 
 
-def rotate_vms(configMap, username, **key_args):
-    auth = configMap["Global"]["azure_credentials"][key_args.get("account")]
+def rotate_vms(config_map, username, **key_args):
+    auth = config_map["Global"]["azure_credentials"][key_args.get("account")]
     credentials = ClientSecretCredential(
         auth.get("tenant"), auth.get("client_id"), auth.get("secret")
     )
     subscriptions = key_args.get("resource_group_subscriptionid")
 
     for subscription in subscriptions:
+        region = None
         to_rotate = []
         for region in subscription:
             for resource_group_name_prefix, subscription_id in subscription.get(
                 region
             ).items():
                 resource_client = ResourceManagementClient(
-                    credentials, subscription_id, logging_enable=False
+                    credentials, subscription_id, logging_enable=False  # type: ignore
                 )
-                compute_client = ComputeManagementClient(credentials, subscription_id)
+                compute_client = ComputeManagementClient(credentials, subscription_id)  # type: ignore
 
                 resource_groups = resource_client.resource_groups.list()
                 matching_resource_groups = [
@@ -88,20 +89,19 @@ def rotate_vms(configMap, username, **key_args):
                 commands.append(key_args.get("fadmin_markers_commands").get(marker))
             key_args["commands"] = commands
             key_args["markers"] = markers
-            ssh_server_command(configMap, username, **key_args)
+            ssh_server_command(config_map, username, **key_args)
 
 
-def set_key_vault(configMap, username, **key_args):
-
+def set_key_vault(config_map, username, **key_args):
     key_vault_uri = key_args.get("vault_uri")
-    auth = configMap["Global"]["azure_credentials"][key_args.get("account")]
+    auth = config_map["Global"]["azure_credentials"][key_args.get("account")]
 
     credential = ClientSecretCredential(
         auth.get("tenant"), auth.get("client_id"), auth.get("secret")
     )
 
     client = SecretClient(
-        vault_url=key_vault_uri, credential=credential, logging_enable=False
+        vault_url=key_vault_uri, credential=credential, logging_enable=False  # type: ignore
     )
 
     if values.DryRun is True:
@@ -121,8 +121,8 @@ def set_key_vault(configMap, username, **key_args):
         pass
 
 
-def update_pipeline_service_connection(configMap, username, **key_args):
-    personal_access_token = configMap["Global"]["azure_credentials"][
+def update_pipeline_service_connection(config_map, username, **key_args):
+    personal_access_token = config_map["Global"]["azure_credentials"][
         "personal_access_token"
     ]
     organization_url = key_args.get("devops_organization_url")

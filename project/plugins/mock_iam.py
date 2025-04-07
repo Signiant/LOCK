@@ -4,7 +4,7 @@ from project import values
 logging.getLogger("botocore").setLevel(logging.CRITICAL)
 
 
-def get_new_key(configMap, username, **kwargs):
+def get_new_key(_, username, **__):
     if (
         values.access_keys[username] == ("", "") and values.DryRun is False
     ):  # run only if user hasn't manually entered a key

@@ -1,14 +1,13 @@
 import logging
 import boto3
-import botocore
-import os
+import botocore.config
 
 from project import values
 from project.plugins.iam import get_iam_session
 
 
 def get_s3_client(config_map):
-    s3_config = botocore.client.Config(s3={"addressing_style": "path"})
+    s3_config = botocore.config.Config(s3={"addressing_style": "path"})
     if values.profile is not None:
         session = get_iam_session()
         return session.client("s3", config=s3_config)
@@ -58,9 +57,8 @@ def write_s3_file(config_map, username, **key_args):
                 ):
                     logging.info(f"User {username}: SUCCESS")
                     result = True
-        except:
+        except Exception as e:
             logging.critical(
-                f"User {username}: Failed to upload to bucket %d at path %s"
-                % (bucket, file_path)
+                f"User {username}: Failed to upload to bucket {bucket} at path {file_path}: {e}"
             )
     return result

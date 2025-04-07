@@ -29,12 +29,13 @@ class AzureIdentityCredentialAdapter(BasicTokenAuthentication):
         :param credential: Any azure-identity credential (DefaultAzureCredential by default)
         :param str resource_id: The scope to use to get the token (default ARM)
         """
-        super(AzureIdentityCredentialAdapter, self).__init__(None)
+        super(AzureIdentityCredentialAdapter, self).__init__(None)  # type: ignore
         if credential is None:
             credential = DefaultAzureCredential()
         self._policy = BearerTokenCredentialPolicy(credential, resource_id, **kwargs)
 
-    def _make_request(self):
+    @staticmethod
+    def _make_request():
         return PipelineRequest(
             HttpRequest("AzureIdentityCredentialAdapter", "https://fakeurl"),
             PipelineContext(None),

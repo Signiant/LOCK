@@ -6,7 +6,7 @@ from project import values
 from project.plugins.iam import get_iam_session
 
 
-def handle_eb_update(configMap, username, **key_args):
+def handle_eb_update(config_map, username, **key_args):
 
     # Need to update the dcrp beanstalks
     result = rotate_dcrp_credentials(
@@ -14,7 +14,7 @@ def handle_eb_update(configMap, username, **key_args):
         values.access_keys[username][0],
         values.access_keys[username][1],
         key_args,
-        configMap,
+        config_map,
     )
     if result:
         logging.info("Successfully updated ACCESS KEY for %s" % username)
@@ -23,7 +23,7 @@ def handle_eb_update(configMap, username, **key_args):
 
 
 def rotate_dcrp_credentials(
-    username, access_key_id, secret_access_key, key_args, configMap
+    username, access_key_id, secret_access_key, key_args, config_map
 ):
     result = True
     logging.info(
@@ -32,28 +32,25 @@ def rotate_dcrp_credentials(
     app_name = key_args.get("app_name")
     environments = key_args.get("environments")
 
-    EB = get_EB_client(configMap)
+    eb = get_eb_client(config_map)
 
     for environment_name in environments:
         logging.info(f"User {username}: Updating %s" % environment_name)
-        options = []
-        options.append(
+        options = [
             {
                 "OptionName": "AWS_ACCESS_KEY_ID",
                 "Namespace": key_args.get("namespace"),
                 "Value": access_key_id,
-            }
-        )
-        options.append(
+            },
             {
                 "OptionName": "AWS_SECRET_KEY",
                 "Namespace": key_args.get("namespace"),
                 "Value": secret_access_key,
-            }
-        )
-        _update_beanstalk_environment(username, app_name, environment_name, options, EB)
+            },
+        ]
+        _update_beanstalk_environment(username, app_name, environment_name, options, eb)
         retries = 0
-        while not _is_eb_healthy(app_name, environment_name, EB):
+        while not _is_eb_healthy(app_name, environment_name, eb):
             logging.info(
                 f"User {username}: Waiting for EB environment to finish updating..."
             )
@@ -68,8 +65,8 @@ def rotate_dcrp_credentials(
     return result
 
 
-def _is_eb_healthy(app_name, environment, EB):
-    query_result = EB.describe_environments(
+def _is_eb_healthy(app_name, environment, eb):
+    query_result = eb.describe_environments(
         ApplicationName=app_name, EnvironmentNames=[environment]
     )
     if "Environments" in query_result:
@@ -79,7 +76,7 @@ def _is_eb_healthy(app_name, environment, EB):
     return False
 
 
-def _update_beanstalk_environment(username, app_name, env_name, options, EB):
+def _update_beanstalk_environment(username, app_name, env_name, options, eb):
     if values.DryRun is True:
         logging.info(
             f"User {username}: Dry run: _update_beanstalk_environment; "
@@ -88,19 +85,19 @@ def _update_beanstalk_environment(username, app_name, env_name, options, EB):
             + env_name
         )
     else:
-        EB.update_environment(
+        eb.update_environment(
             ApplicationName=app_name, EnvironmentName=env_name, OptionSettings=options
         )
     return True
 
 
-def get_EB_client(configMap):
+def get_eb_client(config_map):
     if values.profile is not None:
         session = get_iam_session()
         return session.client("elasticbeanstalk")
     else:
         return boto3.client(
             "elasticbeanstalk",
-            aws_access_key_id=configMap["Global"]["id"],
-            aws_secret_access_key=configMap["Global"]["secret"],
+            aws_access_key_id=config_map["Global"]["id"],
+            aws_secret_access_key=config_map["Global"]["secret"],
         )

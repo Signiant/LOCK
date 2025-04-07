@@ -17,8 +17,8 @@ from project import values
 logging.getLogger("googleapiclient.discovery_cache").setLevel(logging.CRITICAL)
 
 
-def set_secret_manager(configMap, username, **key_args):
-    auth = configMap["Global"]["google_credentials"]["client_cred"]
+def set_secret_manager(config_map, username, **key_args):
+    auth = config_map["Global"]["google_credentials"]["client_cred"]
     # Create the Secret Manager client.
     try:
         client = secretmanager.SecretManagerServiceClient.from_service_account_json(
@@ -85,14 +85,14 @@ def wait_for_operation(username, compute, project, region, operation):
         time.sleep(5)
 
 
-def rotate_instance_groups(configMap, username, **key_args):
-    auth = configMap["Global"]["google_credentials"]["client_cred"]
+def rotate_instance_groups(config_map, username, **key_args):
+    auth = config_map["Global"]["google_credentials"]["client_cred"]
     regions = key_args.get("regions")
     rotate_gcp_instance_group(username, auth, regions, 2)
 
 
-def rotate_fg_instance_groups(configMap, username, **key_args):
-    auth = configMap["Global"]["google_credentials"]["fg_cred"]
+def rotate_fg_instance_groups(config_map, username, **key_args):
+    auth = config_map["Global"]["google_credentials"]["fg_cred"]
     regions = key_args.get("regions")
     rotate_gcp_instance_group(username, auth, regions, 3)
 
@@ -184,8 +184,8 @@ def rotate_gcp_instance_group(username, auth, regions, max_unavailable):
             return
 
 
-def update_encrypted_secret(configMap, username, **key_args):
-    auth = configMap["Global"]["google_credentials"]["fg_cred"]
+def update_encrypted_secret(config_map, username, **key_args):
+    auth = config_map["Global"]["google_credentials"]["fg_cred"]
     # Create the kms client.
     try:
         credentials = service_account.Credentials.from_service_account_file(auth)
@@ -230,7 +230,7 @@ def update_encrypted_secret(configMap, username, **key_args):
             )
         except Exception as e:
             logging.error(
-                f"User {username}: Exception trying to encrypt flight-gateway cred Exception: {0}"
+                f"User {username}: Exception trying to encrypt flight-gateway cred Exception: {e}"
             )
             return
 

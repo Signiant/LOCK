@@ -7,8 +7,8 @@ from project import values
 
 
 # https://github.com/pycontribs/jenkinsapi/blob/master/examples/how_to/create_credentials.py
-def update_credential(configMap, username, **key_args):
-    auth = configMap["Global"]["server"]["jenkins"]
+def update_credential(config_map, _, **key_args):
+    auth = config_map["Global"]["server"]["jenkins"]
     username = auth.get("user")
     password = auth.get("password")
     jenkins_url = key_args.get("url")
@@ -37,10 +37,11 @@ def update_credential(configMap, username, **key_args):
             try:
                 creds[creds_description1] = UsernamePasswordCredential(cred_dict)
                 logging.info(f"User {username}: Key written to " + jenkins_url)
-            except:
-                logging.error(f"User {username}: Key write failed at: " + jenkins_url)
-    except:
+            except Exception as e:
+                logging.error(
+                    f"User {username}: Key write failed at {jenkins_url}: {e}"
+                )
+    except Exception as e:
         logging.error(
-            f"User {username}: Exception trying to modify Key at %s - Key may need to be updated manually"
-            % jenkins_url
+            f"User {username}: Exception trying to modify Key at {jenkins_url} (Key may need to be updated manually): {e}"
         )

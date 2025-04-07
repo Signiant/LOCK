@@ -10,13 +10,13 @@ from bs4 import BeautifulSoup
 from project import values
 
 
-def mail_message(configMap, username, **key_args):
-    mail_from = configMap["Global"]["mail"]["from_addr"]
-    mail_cc = configMap["Global"]["mail"]["cc_addrs"]
+def mail_message(config_map, username, **key_args):
+    mail_from = config_map["Global"]["mail"]["from_addr"]
+    mail_cc = config_map["Global"]["mail"]["cc_addrs"]
     if key_args.get("mail_to_cc") is not None:
         for email in key_args.get("mail_to_cc"):
             mail_cc.append(email)
-    email_template_file = configMap["Global"]["mail"]["template"]
+    email_template_file = config_map["Global"]["mail"]["template"]
 
     email_to_addr = key_args.get("mail_to")
     email_subject = "AWS key rotation"
@@ -27,7 +27,7 @@ def mail_message(configMap, username, **key_args):
     htmlvalues = {}
     template = EmailTemplate(
         template_name=email_template_file,
-        htmlvalues=htmlvalues,
+        htmlvalues=htmlvalues,  # type: ignore
         content_title=content_title,
     )
 
@@ -42,7 +42,7 @@ def mail_message(configMap, username, **key_args):
     if values.DryRun is True:
         logging.info(f"User {username}: Dry run: mail_message;\n" + content_title)
     else:
-        send_ses(username, configMap, msg)
+        send_ses(username, config_map, msg)
         logging.info(
             f"User {username}: Notification email sent to "
             + key_args.get("mail_to")
@@ -62,7 +62,10 @@ class EmailTemplate:
         path = os.path.dirname(__file__)
         try:
             content1 = open(path + "/" + self.template_name).read()
-        except:
+        except Exception as e:
+            logging.info(
+                f"Unable to read content with path {path}/{self.template_name} ({e}): Trying different path."
+            )
             path = "project"
             content1 = open(path + "/" + self.template_name).read()
 
@@ -78,15 +81,15 @@ class MailMessage(object):
     def __init__(
         self,
         from_email="",
-        to_emails=[],
-        cc_emails=[],
+        to_emails=None,
+        cc_emails=None,
         subject="",
         body="",
         template=None,
     ):
         self.from_email = from_email
-        self.to_emails = to_emails
-        self.cc_emails = cc_emails
+        self.to_emails = to_emails if to_emails is not None else []
+        self.cc_emails = cc_emails if cc_emails is not None else []
         self.subject = subject
         self.template = template
         self.body = body

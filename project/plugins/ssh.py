@@ -91,6 +91,7 @@ def ssh_server(
     if port is None:
         port = 22
     logging.info(f"User {username}: Attempting to connect to {hostname} on port {port}")
+    client = None
     try:
         client = paramiko.SSHClient()
         client.load_system_host_keys()
@@ -134,11 +135,12 @@ def ssh_server(
     except Exception as e:
         logging.error(f"User {username}: Error with SSH connection: {e}")
     finally:
-        client.close()
+        if client is not None:
+            client.close()
 
 
 # ssh and write to file using commands
-def ssh_server_command(config_map, username, **key_args):
+def ssh_server_command(_, username, **key_args):
     list_of_commands = key_args.get("commands")
     list_of_commands = [
         command.replace(

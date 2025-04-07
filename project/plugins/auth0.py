@@ -4,9 +4,8 @@ from project import values
 import requests
 
 
-def rotate_auth0_key(configMap, username, **key_args):
-
-    auth = configMap["Global"]["auth0_email_sender"][key_args.get("account")]
+def rotate_auth0_key(config_map, username, **key_args):
+    auth = config_map["Global"]["auth0_email_sender"][key_args.get("account")]
     client_id = auth.get("client_id")
     client_secret = auth.get("client_secret")
 

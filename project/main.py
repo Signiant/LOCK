@@ -24,7 +24,7 @@ from project import values
 from project import utils
 
 
-def validate_keys_for_user(userdata, configMap, username, keys_to_delete):
+def validate_keys_for_user(userdata, config_map, username, keys_to_delete):
     username_to_validate = next(iter(userdata))
     if username != "all" and username != username_to_validate:
         return
@@ -33,7 +33,7 @@ def validate_keys_for_user(userdata, configMap, username, keys_to_delete):
         if user_data.get("plugins")[0].get("iam"):
             if "get_new_key" in user_data.get("plugins")[0].get("iam")[0]:
                 validation_result = validate_new_key(
-                    configMap, username_to_validate, user_data
+                    config_map, username_to_validate, user_data
                 )
                 if validation_result is not None:
                     old_key, prompt = validation_result
@@ -52,14 +52,14 @@ def validate_keys_for_user(userdata, configMap, username, keys_to_delete):
         )
 
 
-def validate_keys(username, all_users, configMap):
+def validate_keys(username, all_users, config_map):
     keys_to_delete = []
     utils.run_threads(
-        all_users, validate_keys_for_user, configMap, username, keys_to_delete
+        all_users, validate_keys_for_user, config_map, username, keys_to_delete
     )
     for owner, key, prompt in keys_to_delete:
         user_data = [data for data in all_users if next(iter(data)) == owner][0][owner]
-        delete_old_key(user_data, configMap, owner, key, prompt)
+        delete_old_key(user_data, config_map, owner, key, prompt)
 
 
 def rotate_update(
@@ -100,33 +100,33 @@ def rotate_update(
                 return
 
 
-def rotate_keys(username, all_users, configMap, user_data, ssh_username, ssh_password):
+def rotate_keys(username, all_users, config_map, user_data, ssh_username, ssh_password):
     if username == "all":
         utils.run_threads(
-            all_users, rotate_update, configMap, None, ssh_username, ssh_password
+            all_users, rotate_update, config_map, None, ssh_username, ssh_password
         )
     else:
-        rotate_update(user_data, configMap, username, ssh_username, ssh_password)
+        rotate_update(user_data, config_map, username, ssh_username, ssh_password)
 
 
-def list_keys_for_user(user_data, configMap):
+def list_keys_for_user(user_data, config_map):
     username = next(iter(user_data))
-    iam.list_keys(configMap, username)
+    iam.list_keys(config_map, username)
 
 
-def list_keys(username, all_users, configMap):
+def list_keys(username, all_users, config_map):
     if username == "all":
-        utils.run_threads(all_users, list_keys_for_user, configMap)
+        utils.run_threads(all_users, list_keys_for_user, config_map)
     else:
-        iam.list_keys(configMap, username)
+        iam.list_keys(config_map, username)
 
 
 def update_access_key(username, key):
     values.access_keys[username] = key
 
 
-def set_DryRun(bool):
-    values.DryRun = bool
+def set_dry_run(dry_run):
+    values.DryRun = dry_run
 
 
 def check_for_placeholders(group_name, group):
@@ -174,18 +174,18 @@ def verify_vpn_enabled():
         logging.info("User is connected to VPN (interface ppp0). LOCK will continue.")
 
 
-def readConfigFile(path):
+def read_config_file(path):
     try:
         logging.debug(f"Config file path {path}")
         config_file_handle = open(path)
-        configMap = yaml.load(config_file_handle, Loader=yaml.FullLoader)
+        config_map = yaml.load(config_file_handle, Loader=yaml.FullLoader)
         config_file_handle.close()
     except Exception as e:
         logging.error(
             f"Error: Unable to open config file {path} or invalid Yaml {str(e)}"
         )
         sys.exit(1)
-    return configMap
+    return config_map
 
 
 def main():
@@ -256,32 +256,32 @@ def main():
         print("DEBUG logging requested")
         log_level = logging.DEBUG
 
-    logFormatter = logging.Formatter(
+    log_formatter = logging.Formatter(
         "%(asctime)s - %(levelname)s: (tid=%(thread)d) [%(module)s] %(message)s"
     )
-    rootLogger = logging.getLogger()
-    rootLogger.setLevel(logging.DEBUG)
-    consoleHandler = logging.StreamHandler()
-    consoleHandler.setLevel(log_level)
-    consoleHandler.setFormatter(logFormatter)
-    fileHandler = logging.FileHandler("lock.log")
-    fileHandler.setFormatter(logFormatter)
-    fileHandler.setLevel(logging.DEBUG)
-    rootLogger.addHandler(fileHandler)
-    rootLogger.addHandler(consoleHandler)
+    root_logger = logging.getLogger()
+    root_logger.setLevel(logging.DEBUG)
+    console_handler = logging.StreamHandler()
+    console_handler.setLevel(log_level)
+    console_handler.setFormatter(log_formatter)
+    file_handler = logging.FileHandler("lock.log")
+    file_handler.setFormatter(log_formatter)
+    file_handler.setLevel(logging.DEBUG)
+    root_logger.addHandler(file_handler)
+    root_logger.addHandler(console_handler)
 
-    configMap = readConfigFile(args.config)
+    config_map = read_config_file(args.config)
 
-    if "RequiredParameters" in configMap:
-        missing_parameters = verify_parameters_set(configMap["RequiredParameters"])
+    if "RequiredParameters" in config_map:
+        missing_parameters = verify_parameters_set(config_map["RequiredParameters"])
         if len(missing_parameters) > 0:
             logging.error(
                 f"Required parameters are missing:\n{yaml.safe_dump(missing_parameters, indent=4)}"
             )
             sys.exit(1)
 
-        if configMap["RequiredParameters"].get("env"):
-            export_environment_variables(**configMap["RequiredParameters"]["env"])
+        if config_map["RequiredParameters"].get("env"):
+            export_environment_variables(**config_map["RequiredParameters"]["env"])
 
     if os.getenv("VPN_REQUIRED", "False").lower() == "true":
         verify_vpn_enabled()
@@ -293,7 +293,7 @@ def main():
     if args.action is None:
         args.action = "list"  # 'instance:status'
 
-    set_DryRun(args.dryRun)
+    set_dry_run(args.dryRun)
     values.hide_key = args.hidekey
 
     if args.dryRun is True:
@@ -307,9 +307,9 @@ def main():
         if not args.ssh_password:
             ssh_password = input(f"Password for {args.ssh_username}: ")
 
-    logging.debug(f"Config file {str(configMap)}")
+    logging.debug(f"Config file {str(config_map)}")
     user_data = None
-    all_users = configMap["Users"]
+    all_users = config_map["Users"]
     for userdata in all_users:
         if username == (next(iter(userdata))):
             user_data = userdata.get(username)
@@ -323,15 +323,15 @@ def main():
         update_access_key(username, args.key)
 
     if args.action == "list":
-        list_keys(username, all_users, configMap)
+        list_keys(username, all_users, config_map)
     elif args.action == "rotate":  # run functions listed in the config file.
         rotate_keys(
-            username, all_users, configMap, user_data, args.ssh_username, ssh_password
+            username, all_users, config_map, user_data, args.ssh_username, ssh_password
         )
     elif (
         args.action == "validate"
     ):  # validate that new key is being used and delete the old unused key
-        validate_keys(username, all_users, configMap)
+        validate_keys(username, all_users, config_map)
 
 
 if __name__ == "__main__":

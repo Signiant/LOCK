@@ -48,9 +48,9 @@ def set_param_in_region(
     ssm = get_ssm_client(config_map)
 
     if encrypt:
-        type = "SecureString"
+        param_type = "SecureString"
     else:
-        type = "String"
+        param_type = "String"
 
     if value_is_file and not os.path.exists(value):
         _log_and_print_to_console(
@@ -67,7 +67,7 @@ def set_param_in_region(
                     Name=parameter,
                     Description=description,
                     Value=value,
-                    Type=type,
+                    Type=param_type,
                     KeyId=key,
                     Overwrite=True,
                 )
@@ -76,17 +76,21 @@ def set_param_in_region(
                     Name=parameter,
                     Description=description,
                     Value=value,
-                    Type=type,
+                    Type=param_type,
                     Overwrite=True,
                 )
         else:
             if key:
                 result = ssm.put_parameter(
-                    Name=parameter, Value=value, Type=type, KeyId=key, Overwrite=True
+                    Name=parameter,
+                    Value=value,
+                    Type=param_type,
+                    KeyId=key,
+                    Overwrite=True,
                 )
             else:
                 result = ssm.put_parameter(
-                    Name=parameter, Value=value, Type=type, Overwrite=True
+                    Name=parameter, Value=value, Type=param_type, Overwrite=True
                 )
 
     if result:

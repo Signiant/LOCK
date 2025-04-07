@@ -4,8 +4,7 @@ from project import values
 from subprocess import call
 
 
-def run_command(configMap, username, **key_args):
-
+def run_command(_, username, **key_args):
     list_of_commands = key_args.get("commands")
     for command in list_of_commands:
         command = command.replace(
@@ -19,11 +18,11 @@ def run_command(configMap, username, **key_args):
             call(command)
 
 
-def set_environment_variables(configMap, username, **key_args):
+def set_environment_variables(_, __, **key_args):
     for var in key_args.get("variables"):
         pair = var.split("=")
         os.environ[pair[0]] = pair[1]
 
 
-def print_instructions(configMap, username, **key_args):
+def print_instructions(_, username, **key_args):
     logging.info(f"User {username}: {key_args.get('instructions')}")

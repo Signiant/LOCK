@@ -4,7 +4,7 @@ from botocore.exceptions import ClientError
 import sys
 import pytz
 from project import values
-from datetime import datetime
+from datetime import datetime, timezone
 import time
 import hmac
 import hashlib
@@ -17,7 +17,7 @@ def get_iam_session():
     return boto3.Session(profile_name=values.profile)
 
 
-def get_iam_client(configMap, **kwargs):
+def get_iam_client(config_map, **kwargs):
     if kwargs.get("credential_profile") is not None:
         profile_name = kwargs.get("credential_profile")
         session = boto3.Session(profile_name=profile_name)
@@ -28,13 +28,13 @@ def get_iam_client(configMap, **kwargs):
     else:
         return boto3.client(
             "iam",
-            aws_access_key_id=configMap["Global"]["id"],
-            aws_secret_access_key=configMap["Global"]["secret"],
+            aws_access_key_id=config_map["Global"]["id"],
+            aws_secret_access_key=config_map["Global"]["secret"],
         )
 
 
 def delete_older_key(
-    configMap, username, client
+    config_map, username, client
 ):  # Delete the key if both have been used
     keys = get_access_keys(client, username)
     if len(keys) > 1:
@@ -53,18 +53,18 @@ def delete_older_key(
             if key2.get("AccessKeyLastUsed").get("LastUsedDate") > key1.get(
                 "AccessKeyLastUsed"
             ).get("LastUsedDate"):
-                delete_prompt(configMap, username, client, keyid1, delete_special)
+                delete_prompt(config_map, username, client, keyid1, delete_special)
             elif key2.get("AccessKeyLastUsed").get("LastUsedDate") < key1.get(
                 "AccessKeyLastUsed"
             ).get("LastUsedDate"):
-                delete_prompt(configMap, username, client, keyid2, delete_special)
+                delete_prompt(config_map, username, client, keyid2, delete_special)
             else:
                 delete_special = True
-                delete_prompt(configMap, username, client, keyid2, delete_special)
+                delete_prompt(config_map, username, client, keyid2, delete_special)
 
 
-def delete_prompt(configMap, username, client, key, delete_special):
-    list_keys(configMap, username)
+def delete_prompt(config_map, username, client, key, delete_special):
+    list_keys(config_map, username)
     yes = {"yes", "y", "ye", ""}
     no = {"no", "n"}
     choice = None
@@ -87,8 +87,8 @@ def delete_prompt(configMap, username, client, key, delete_special):
             sys.exit()
 
 
-def create_and_test_key(configMap, username):  # TO TEST A KEY
-    client = get_iam_client(configMap)
+def create_and_test_key(config_map, username):  # TO TEST A KEY
+    client = get_iam_client(config_map)
     response = client.create_access_key(UserName=username)
 
     import time
@@ -144,21 +144,20 @@ def create_key(client, username):
         return None, None
 
 
-def delete_old_key(user_data, configMap, username, keyId, prompt):
+def delete_old_key(user_data, config_map, username, key_id, prompt):
     iam_data = user_data.get("plugins")[0].get("iam")[0].get("get_new_key")
     aws_profile = None
     if iam_data:
         if "credential_profile" in iam_data:
             aws_profile = iam_data.get("credential_profile")
     if aws_profile:
-        kwargs = {}
-        kwargs["credential_profile"] = aws_profile
-        client = get_iam_client(configMap, **kwargs)
+        kwargs = {"credential_profile": aws_profile}
+        client = get_iam_client(config_map, **kwargs)
     else:
-        client = get_iam_client(configMap)
+        client = get_iam_client(config_map)
 
     deletion_prompt = (
-        prompt + "\n" + "   Delete the old access key: " + keyId + "? (y/n) "
+        prompt + "\n" + "   Delete the old access key: " + key_id + "? (y/n) "
     )
     yes = {"yes", "y", "ye", ""}
     no = {"no", "n"}
@@ -168,26 +167,26 @@ def delete_old_key(user_data, configMap, username, keyId, prompt):
         choice = input(deletion_prompt).lower()
         if choice in yes:
             if values.DryRun:
-                logging.info(f"User {username}: Dry run. {keyId} was not deleted.")
+                logging.info(f"User {username}: Dry run. {key_id} was not deleted.")
             else:
-                client.delete_access_key(UserName=username, AccessKeyId=keyId)
+                client.delete_access_key(UserName=username, AccessKeyId=key_id)
                 logging.info(f"User {username}: Old key deleted.")
         elif choice in no:
             logging.info(f"User {username}: Key was not deleted.")
 
 
-def key_last_used(client, keyId):
-    return client.get_access_key_last_used(AccessKeyId=keyId)
+def key_last_used(client, key_id):
+    return client.get_access_key_last_used(AccessKeyId=key_id)
 
 
-def get_new_key(configMap, username, **kwargs):
+def get_new_key(config_map, username, **kwargs):
     if (
         values.access_keys[username] == ("", "") and values.DryRun is False
     ):  # run only if user hasn't manually entered a key
         from project.main import update_access_key
 
         # setup connection
-        client = get_iam_client(configMap, **kwargs)
+        client = get_iam_client(config_map, **kwargs)
         # get existing keys
         existing_keys = get_access_keys(client, username)
         # delete 'inactive' keys (and warn about unused active keys)
@@ -216,7 +215,7 @@ def get_new_key(configMap, username, **kwargs):
     else:
         logging.info(f"User {username}: Dry run of get new key.")
         # setup connection
-        client = get_iam_client(configMap, **kwargs)
+        client = get_iam_client(config_map, **kwargs)
         # get existing keys
         existing_keys = get_access_keys(client, username)
 
@@ -229,7 +228,7 @@ def get_new_key(configMap, username, **kwargs):
 
 
 # validate that new key is being used and delete the old unused key otherwise do nothing and advise the user
-def validate_new_key(configMap, username, user_data):
+def validate_new_key(config_map, username, user_data):
     deletion_prompt = f"Key validation results for user: {username}"
     logging.info(f"User {username}: Validating keys for user")
 
@@ -239,41 +238,48 @@ def validate_new_key(configMap, username, user_data):
         if "credential_profile" in iam_data:
             aws_profile = iam_data.get("credential_profile")
     if aws_profile:
-        kwargs = {}
-        kwargs["credential_profile"] = aws_profile
-        client = get_iam_client(configMap, **kwargs)
+        kwargs = {"credential_profile": aws_profile}
+        client = get_iam_client(config_map, **kwargs)
     else:
-        client = get_iam_client(configMap)
+        client = get_iam_client(config_map)
     keys = get_access_keys(client, username)
 
-    lastUsed = []
+    last_used = []
     for key in keys:
         response = key_last_used(client, key.get("AccessKeyId"))
-        lastUsed.append(response)
+        last_used.append(response)
 
     if len(keys) > 1:
-        if keys[0].get("CreateDate") > keys[1].get(
-            "CreateDate"
-        ):  # get the most recently created key
-            lastused = (
-                lastUsed[0].get("AccessKeyLastUsed").get("LastUsedDate")
-            )  # get the most recently created key's last used date
-            old_key_use_date = lastUsed[1].get("AccessKeyLastUsed").get("LastUsedDate")
+        new_key_last_used = None
+        old_key_use_date = None
+        new_key_index = None
+        old_key_index = None
+
+        # get the most recently created key
+        if keys[0].get("CreateDate") > keys[1].get("CreateDate"):
+            # get the most recently created key's last used date
+            new_key_last_used = (
+                last_used[0].get("AccessKeyLastUsed").get("LastUsedDate")
+            )
+            old_key_use_date = last_used[1].get("AccessKeyLastUsed").get("LastUsedDate")
             new_key_index = 0
             old_key_index = 1
         elif keys[1].get("CreateDate") > keys[0].get("CreateDate"):
-            lastused = lastUsed[1].get("AccessKeyLastUsed").get("LastUsedDate")
-            old_key_use_date = lastUsed[0].get("AccessKeyLastUsed").get("LastUsedDate")
+            new_key_last_used = (
+                last_used[1].get("AccessKeyLastUsed").get("LastUsedDate")
+            )
+            old_key_use_date = last_used[0].get("AccessKeyLastUsed").get("LastUsedDate")
             new_key_index = 1
             old_key_index = 0
 
-        present = datetime.utcnow()
+        present = datetime.now(tz=timezone.utc)
         present = pytz.utc.localize(present)
         logging.debug(f"User {username}: Present time (UTC): %s" % str(present))
         logging.debug(
             f"User {username}: Old key time (UTC): %s" % str(old_key_use_date)
         )
 
+        timediff_hours = None
         if old_key_use_date:
             timediff = present - old_key_use_date
             timediff_hours = (timediff.days * 24) + (timediff.seconds / 3600)
@@ -296,15 +302,15 @@ def validate_new_key(configMap, username, user_data):
                 f"User {username}: Time diff in hours: %s" % str(timediff_hours)
             )
 
-            if timediff_hours < configMap["Global"]["key_validate_time_check"]:
+            if timediff_hours < config_map["Global"]["key_validate_time_check"]:
                 deletion_prompt += (
                     "\n"
                     + "      Old key was used less than %s hours ago"
-                    % (str(configMap["Global"]["key_validate_time_check"]))
+                    % (str(config_map["Global"]["key_validate_time_check"]))
                 )
                 logging.warning(
                     f"User {username}: Old key was used less than %s hours ago"
-                    % (str(configMap["Global"]["key_validate_time_check"]))
+                    % (str(config_map["Global"]["key_validate_time_check"]))
                 )
         else:
             deletion_prompt += (
@@ -316,7 +322,7 @@ def validate_new_key(configMap, username, user_data):
                 % oldkeyname
             )
 
-        if lastused is None:
+        if new_key_last_used is None:
             deletion_prompt += (
                 "\n"
                 + "   New key (%s) has not been used. Check if service is properly running or if the key is properly assigned to the service."
@@ -329,11 +335,11 @@ def validate_new_key(configMap, username, user_data):
         else:
             deletion_prompt += "\n" + "   New key (%s) was last used: %s" % (
                 newkeyname,
-                str(lastused),
+                str(new_key_last_used),
             )
             logging.info(
                 f"User {username}: New key (%s) was last used: %s"
-                % (newkeyname, str(lastused))
+                % (newkeyname, str(new_key_last_used))
             )
 
         return oldkeyname, deletion_prompt
@@ -343,14 +349,14 @@ def validate_new_key(configMap, username, user_data):
         )
 
 
-def delete_iam_user(configMap, username, **key_args):
-    client = get_iam_client(configMap)
+def delete_iam_user(config_map, username, **_):
+    client = get_iam_client(config_map)
     client.delete_user(UserName=username)
 
 
-def list_keys(configMap, username):
+def list_keys(config_map, username):
     key_args = {}
-    client = get_iam_client(configMap, **key_args)
+    client = get_iam_client(config_map, **key_args)
     keys = get_access_keys(client, username)
     if keys is not None:
         for key in keys:
@@ -360,11 +366,11 @@ def list_keys(configMap, username):
                 logging.info(f"User {username}: " + i + ": " + str(key[i]))
 
 
-def rotate_ses_smtp_user(configMap, username, **key_args):
+def rotate_ses_smtp_user(config_map, username, **key_args):
     if values.DryRun is True:
         logging.info(f"User {username}: Dry run: rotate_ses_smtp_user")
     else:
-        key = get_new_key(configMap, username, **key_args)
+        key = get_new_key(config_map, username, **key_args)
         if key:
             password = hash_smtp_pass_from_secret_key(key[1])
 
@@ -389,30 +395,30 @@ def sign(key, msg):
 
 
 def hash_smtp_pass_from_secret_key(secret_access_key, region="us-east-1"):
-    DATE = "11111111"
-    SERVICE = "ses"
-    MESSAGE = "SendRawEmail"
-    TERMINAL = "aws4_request"
-    VERSION = 0x04
+    date = "11111111"
+    service = "ses"
+    message = "SendRawEmail"
+    terminal = "aws4_request"
+    version = 0x04
 
-    signature = sign(("AWS4" + secret_access_key).encode("utf-8"), DATE)
+    signature = sign(("AWS4" + secret_access_key).encode("utf-8"), date)
     signature = sign(signature, region)
-    signature = sign(signature, SERVICE)
-    signature = sign(signature, TERMINAL)
-    signature = sign(signature, MESSAGE)
-    signature_and_version = bytes([VERSION]) + signature
+    signature = sign(signature, service)
+    signature = sign(signature, terminal)
+    signature = sign(signature, message)
+    signature_and_version = bytes([version]) + signature
     smtp_password = base64.b64encode(signature_and_version)
     return smtp_password.decode("utf-8")
 
 
-def store_password_parameter_store(configMap, username, **key_args):
-    client = get_ssm_client(configMap, **key_args)
+def store_password_parameter_store(config_map, username, **key_args):
+    client = get_ssm_client(config_map, **key_args)
 
     # NOTE that this is the user/password, the secret key is NOT a regular secret key, while username is the Accesskey
     if values.DryRun is True:
         logging.info(f"User {username}: Dry run: store_key_parameter_store")
     else:
-        key_id = key_args.get("key", configMap["Global"]["parameter_store"]["KeyId"])
+        key_id = key_args.get("key", config_map["Global"]["parameter_store"]["KeyId"])
 
         client.put_parameter(
             Name="LOCK." + username.upper(),
@@ -430,8 +436,8 @@ def store_password_parameter_store(configMap, username, **key_args):
         )
 
 
-def store_key_parameter_store(configMap, username, **key_args):
-    client = get_ssm_client(configMap, **key_args)
+def store_key_parameter_store(config_map, username, **key_args):
+    client = get_ssm_client(config_map, **key_args)
     if values.DryRun is True:
         logging.info(f"User {username}: Dry run: store_key_parameter_store")
     else:
@@ -454,7 +460,7 @@ def store_key_parameter_store(configMap, username, **key_args):
         if key_args.get("key") is not None:
             key_id = key_args.get("key")
         else:
-            key_id = configMap["Global"]["parameter_store"]["KeyId"]
+            key_id = config_map["Global"]["parameter_store"]["KeyId"]
         response = client.put_parameter(
             Name=parameter_name,
             Description="modified by LOCK",  # config desc
@@ -476,15 +482,15 @@ def store_key_parameter_store(configMap, username, **key_args):
         print(param_list)
 
 
-def ecs_task_restart(configMap, username, **key_args):
+def ecs_task_restart(config_map, username, **key_args):
     """
-    restart all tasks in a service by finding the service and restart it's tasks
-    :param configMap:
+    restart all tasks in a service by finding the service and restart its tasks
+    :param config_map:
     :param username:
     :param key_args:
     :return:
     """
-    client = get_ecs_client(configMap, **key_args)
+    client = get_ecs_client(config_map, **key_args)
     if values.DryRun is True:
         logging.info(f"User {username}: Dry run: ecs_task_restart")
     else:
@@ -492,17 +498,27 @@ def ecs_task_restart(configMap, username, **key_args):
             cluster_name = key_args.get("cluster")
         else:
             logging.info(f"User {username}: ecs restart failed. cluster not defined")
+            return
         if key_args.get("service_wildcard") is not None:
             service_wildcard = key_args.get("service_wildcard")
         else:
             logging.info(
                 f"User {username}: ecs restart failed. service_wildcard not defined"
             )
+            return
         service_list = client.list_services(cluster=cluster_name)["serviceArns"]
 
+        service_name = None
         for service in service_list:
             if service_wildcard in service:
                 service_name = service
+
+        if service_name is None:
+            logging.error(
+                f"User {username}: ECS restart failed. Unable to retrieve name from list of services."
+            )
+            return
+
         print("restart service task for service {0}".format(service_name))
         client.update_service(
             cluster=cluster_name, service=service_name, forceNewDeployment=True
@@ -516,8 +532,7 @@ def update_user_password(pw):
     values.user_password = pw
 
 
-def get_ssm_client(configMap, **key_args):
-
+def get_ssm_client(config_map, **key_args):
     region_name = key_args.get("region", "us-east-1")
 
     if key_args.get("credential_profile") is not None:
@@ -531,14 +546,13 @@ def get_ssm_client(configMap, **key_args):
     else:
         return boto3.client(
             "ssm",
-            aws_access_key_id=configMap["Global"]["id"],
-            aws_secret_access_key=configMap["Global"]["secret"],
+            aws_access_key_id=config_map["Global"]["id"],
+            aws_secret_access_key=config_map["Global"]["secret"],
             region_name=region_name,
         )
 
 
-def get_ecs_client(configMap, **key_args):
-
+def get_ecs_client(config_map, **key_args):
     region_name = key_args.get("region", "us-east-1")
 
     if key_args.get("credential_profile") is not None:
@@ -552,7 +566,7 @@ def get_ecs_client(configMap, **key_args):
     else:
         return boto3.client(
             "ecs",
-            aws_access_key_id=configMap["Global"]["id"],
-            aws_secret_access_key=configMap["Global"]["secret"],
+            aws_access_key_id=config_map["Global"]["id"],
+            aws_secret_access_key=config_map["Global"]["secret"],
             region_name=region_name,
         )
