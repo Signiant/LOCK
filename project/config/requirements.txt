@@ -4,6 +4,7 @@ azure-keyvault
 azure-mgmt-common
 azure-mgmt-resource
 azure-mgmt-compute
+black
 six
 pytz>=2018.7
 jenkinsapi>=0.3.8

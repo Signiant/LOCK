@@ -14,8 +14,14 @@ from azure.core.pipeline.transport import HttpRequest
 
 from azure.identity import DefaultAzureCredential
 
+
 class AzureIdentityCredentialAdapter(BasicTokenAuthentication):
-    def __init__(self, credential=None, resource_id="https://management.azure.com/.default", **kwargs):
+    def __init__(
+        self,
+        credential=None,
+        resource_id="https://management.azure.com/.default",
+        **kwargs
+    ):
         """Adapt any azure-identity credential to work with SDK that needs azure.common.credentials or msrestazure.
 
         Default resource is ARM (syntax of endpoint v2)
@@ -30,11 +36,8 @@ class AzureIdentityCredentialAdapter(BasicTokenAuthentication):
 
     def _make_request(self):
         return PipelineRequest(
-            HttpRequest(
-                "AzureIdentityCredentialAdapter",
-                "https://fakeurl"
-            ),
-            PipelineContext(None)
+            HttpRequest("AzureIdentityCredentialAdapter", "https://fakeurl"),
+            PipelineContext(None),
         )
 
     def set_token(self):

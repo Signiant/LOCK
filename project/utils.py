@@ -1,5 +1,6 @@
 from threading import Thread
 
+
 def run_threads(iterable, target, *additional_args):
     threads = []
     for member in iterable:
