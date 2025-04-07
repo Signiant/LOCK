@@ -9,7 +9,7 @@ from project import values
 logging.getLogger('botocore').setLevel(logging.CRITICAL)
 
 
-def __get_bitbucket_token(config_map,  **kwargs):
+def __get_bitbucket_token(config_map, username,  **kwargs):
     # Retrieve the Bitbucket api key and api from parameter store, and get a Bitbucket api token
     if kwargs.get('credential_profile') is not None:
         profile_name = kwargs.get('credential_profile')
@@ -26,7 +26,7 @@ def __get_bitbucket_token(config_map,  **kwargs):
         bb_api_key = ssm_client.get_parameter(Name='LOCK.bb_api_key', WithDecryption=True)['Parameter']['Value']
         bb_api_secret = ssm_client.get_parameter(Name='LOCK.bb_api_secret', WithDecryption=True)['Parameter']['Value']
     except Exception as e:
-        logging.error(f'Error retrieving Bitbucket credentials from Parameter Store: {e}')
+        logging.error(f'User {username}: Error retrieving Bitbucket credentials from Parameter Store: {e}')
         return None
 
     token_url = 'https://bitbucket.org/site/oauth2/access_token'
@@ -48,7 +48,7 @@ def __get_variable(api_token, workspace, variable_uuid):
     return details
 
 
-def __put_variable(api_token, workspace, variable_uuid, variable_details):
+def __put_variable(username, api_token, workspace, variable_uuid, variable_details):
     headers = dict()
     headers['Accept'] = 'application/json'
     headers['Authorization'] = f'Bearer {api_token}'
@@ -58,33 +58,33 @@ def __put_variable(api_token, workspace, variable_uuid, variable_details):
     payload = json.dumps(variable_details)
     response = requests.put(url, data=payload, headers=headers)
     if response.status_code != 200:
-        logging.error(f'Error updating Bitbucket variable {response.status_code}: {response.text}')
-    return None
+        logging.error(f'User {username}: Error updating Bitbucket variable {response.status_code}: {response.text}')
 
 
-def __update_variable(api_token, workspace, variable_uuid, variable_value):
+def __update_variable(username, api_token, workspace, variable_uuid, variable_value):
     variable_details = __get_variable(api_token, workspace, variable_uuid)
     variable_details['value'] = variable_value
-    __put_variable(api_token, workspace, variable_uuid, variable_details)
-    return None
+    __put_variable(username, api_token, workspace, variable_uuid, variable_details)
 
 
 def update_variables(config_map, username, **kwargs):
-    aws_access_key_id = values.access_key[0]
-    aws_secret_access_key = values.access_key[1]
+    aws_access_key_id = values.access_keys[username][0]
+    aws_secret_access_key = values.access_keys[username][1]
 
-    api_token = __get_bitbucket_token(config_map, **kwargs)
+    api_token = __get_bitbucket_token(config_map, username, **kwargs)
     if not api_token:
-        logging.error(f'Missing Bitbucket API token. Unable to update variables for {username}: aborting')
+        logging.error(f'User {username}: Missing Bitbucket API token. Unable to update variables for {username}: aborting')
         return None
     workspace = kwargs.get('workspace')
     access_key_uuid = kwargs.get('access_key_uuid')
     secret_access_key_uuid = kwargs.get('secret_key_uuid')
 
+    if values.DryRun:
+        logging.info(f"User {username}: Dry run. No Bitbucket workspace variables will be updated.")
+        return None
+
     logging.info(f'Updating access key variable for {username}')
-    __update_variable(api_token, workspace, access_key_uuid, aws_access_key_id)
+    __update_variable(username, api_token, workspace, access_key_uuid, aws_access_key_id)
 
     logging.info(f'Updating secret access key variable for {username}')
-    __update_variable(api_token, workspace, secret_access_key_uuid, aws_secret_access_key)
-
-    return None
+    __update_variable(username, api_token, workspace, secret_access_key_uuid, aws_secret_access_key)

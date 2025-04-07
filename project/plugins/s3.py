@@ -25,22 +25,22 @@ def write_s3_file(config_map, username, **key_args):
     file_path = key_args.get("file_path")
     client = get_s3_client(config_map)
 
-    file_contents = '%s\n%s\n' % (key_args.get('access_key').replace("<new_key_name>", values.access_key[0]),
-             key_args.get('secret_key').replace("<new_key_secret>", values.access_key[1]))
+    file_contents = '%s\n%s\n' % (key_args.get('access_key').replace("<new_key_name>", values.access_keys[username][0]),
+             key_args.get('secret_key').replace("<new_key_secret>", values.access_keys[username][1]))
 
     if values.DryRun is True:
-        logging.info('Dry run, upload file %s to s3 bucket %s' % (file_path, bucket))
+        logging.info(f'User {username}: Dry run, upload file %s to s3 bucket %s' % (file_path, bucket))
         result = True
     else:
         try:
-            logging.info('Attempting to upload to s3 bucket %s at path %s' % (bucket, file_path))
+            logging.info(f'User {username}: Attempting to upload to s3 bucket %s at path %s' % (bucket, file_path))
             response = client.put_object(Bucket=bucket, Body=file_contents.encode(), Key=file_path)
             if 'ResponseMetadata' in response:
                 if 'HTTPStatusCode' in response['ResponseMetadata'] and response['ResponseMetadata']['HTTPStatusCode'] == 200:
-                    logging.info('  SUCCESS')
+                    logging.info(f'User {username}: SUCCESS')
                     result = True
         except:
-            logging.critical('***** Failed to upload to bucket %d at path %s' % (bucket, file_path))
+            logging.critical(f'User {username}: Failed to upload to bucket %d at path %s' % (bucket, file_path))
     return result
 
 

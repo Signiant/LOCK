@@ -31,7 +31,7 @@ def get_elb_client(configMap, **key_args):
                                 aws_secret_access_key=configMap['Global']['secret'])
 
 
-def list_instances(client, instance_name):
+def list_instances(username, client, instance_name):
     instance_IDs = []
     response = client.describe_instances()
     for instance in response.get('Reservations'):
@@ -46,13 +46,13 @@ def list_instances(client, instance_name):
                                 #print(instanceName + " Instance ID: " + instance.get('InstanceId'))
             except:
                 pass
-    logging.debug('    Found the following instances with Name %s: %s' % (instance_name, str(instance_IDs)))
+    logging.debug(f'User {username}: Found the following instances with Name %s: %s' % (instance_name, str(instance_IDs)))
     return instance_IDs
 
 
-def terminate_instance_id(client, instance_id):
+def terminate_instance_id(username, client, instance_id):
     response = client.terminate_instances(InstanceIds=[instance_id],)
-    logging.info('       %s instance terminating' % instance_id)
+    logging.info(f'User {username}: %s instance terminating' % instance_id)
 
 
 def get_instance_status(client, instance_id):
@@ -65,7 +65,7 @@ def get_describe_instance_status(client, instance_id):
     return(response.get('InstanceStatuses')[0].get('InstanceStatus').get('Details')[0].get('Status'))
 
 
-def terminate_instances(configMap, username,  **key_args):
+def terminate_instances(configMap, username, **key_args):
 
     elb_client = get_elb_client(configMap, **key_args)
     ec2_client = get_ec2_client(configMap, **key_args)
@@ -73,37 +73,37 @@ def terminate_instances(configMap, username,  **key_args):
     instance_names = key_args.get('instances')
 
     for instance_name in instance_names:
-        logging.info('  Terminating instances for %s' % instance_name)
+        logging.info(f'User {username}: Terminating instances for %s' % instance_name)
         tg_arn = get_target_group_arn(elb_client, instance_name)
-        instances = list_instances(ec2_client, instance_name)
-        logging.info('    Found following instances: %s' % str(instances))
+        instances = list_instances(username, ec2_client, instance_name)
+        logging.info(f'User {username}: Found following instances: %s' % str(instances))
         growing_instance_list = instances  # list grows as more instances are terminated and new ones are generated
         new_instances = []
         for instance_id in instances:
             reachable = False
 
             if values.DryRun is True:
-                logging.info('Dry run instance: %s %s' %(instance_name, instance_id))
+                logging.info(f'User {username}: Dry run instance: %s %s' %(instance_name, instance_id))
             else:
                 # Remove instance from loadbalancer
-                logging.info('    Removing %s from Targetgroup' % instance_id)
+                logging.info(f'User {username}: Removing %s from Targetgroup' % instance_id)
                 if not _remove_instance_from_targetgroup(elb_client, tg_arn, instance_id):
-                    logging.warning('      Failed to remove instance from target group')
+                    logging.warning(f'User {username}: Failed to remove instance from target group')
                 else:
-                    logging.info('      Successfully removed %s from Targetgroup - pausing for 60 seconds' % instance_id)
+                    logging.info(f'User {username}: Successfully removed %s from Targetgroup - pausing for 60 seconds' % instance_id)
                 # Pause for 60 seconds while connections drain on the instance
                 time.sleep(60)
-                logging.info('    Terminating instance %s' % instance_id)
-                terminate_instance_id(ec2_client, instance_id)
+                logging.info(f'User {username}: Terminating instance %s' % instance_id)
+                terminate_instance_id(username, ec2_client, instance_id)
                 while not reachable:
-                    checkinstancelist = list_instances(ec2_client, instance_name)
+                    checkinstancelist = list_instances(username, ec2_client, instance_name)
                     # print(len(checkinstancelist), len(growing_instance_list))
                     if len(checkinstancelist) > 0:
                         new_instance_ids = list(set(checkinstancelist))
                         for inst in new_instance_ids:
                             if inst not in new_instances and inst not in instances:
                                 new_instances.append(inst)
-                                logging.info('    Found newly launched instance: %s' % inst)
+                                logging.info(f'User {username}: Found newly launched instance: %s' % inst)
 
                         for new_inst in new_instances:
                             instance_reachability = get_describe_instance_status(ec2_client, new_inst)
@@ -114,18 +114,18 @@ def terminate_instances(configMap, username,  **key_args):
                                 # check load balancer
                                 # logging.info('waiting 200 seconds for app to start...')
                                 if not _is_instance_inService(elb_client, tg_arn, new_inst):
-                                    logging.info('      Waiting for instance %s to be InService...' % new_inst)
+                                    logging.info(f'User {username}: Waiting for instance %s to be InService...' % new_inst)
                                     time.sleep(45)
                                     while not _is_instance_inService(elb_client, tg_arn, new_inst):
-                                        logging.info('      Waiting for instance %s to be InService...' % new_inst)
+                                        logging.info(f'User {username}: Waiting for instance %s to be InService...' % new_inst)
                                         time.sleep(45)
                                 else:
-                                    logging.info('      New instance %s is InService - move on' % new_inst)
+                                    logging.info(f'User {username}: New instance %s is InService - move on' % new_inst)
                     if not reachable:
                         if len(new_instances) < 1:
-                            logging.info('    Waiting for newly launched instance(s)...')
+                            logging.info(f'User {username}: Waiting for newly launched instance(s)...')
                         else:
-                            logging.info('      Waiting for newly launched instance to pass status checks...')
+                            logging.info(f'User {username}: Waiting for newly launched instance to pass status checks...')
                         time.sleep(45)
     # pass
 
