@@ -444,7 +444,7 @@ def store_key_parameter_store(config_map, username, **key_args):
     else:
         parameter_name = key_args.get("param_name", "LOCK." + username.upper())
         if key_args.get("value") is not None:
-            # value defined by user as seen under mediashuttle-support-tool user in conig.yaml
+            # value defined by user
             parameter_value = (
                 key_args.get("value")
                 .replace("<new_key_name>", values.access_keys[username][0])
@@ -462,7 +462,7 @@ def store_key_parameter_store(config_map, username, **key_args):
             key_id = key_args.get("key")
         else:
             key_id = config_map["Global"]["parameter_store"]["KeyId"]
-        response = client.put_parameter(
+        client.put_parameter(
             Name=parameter_name,
             Description="modified by LOCK",  # config desc
             Value=parameter_value,
@@ -470,17 +470,9 @@ def store_key_parameter_store(config_map, username, **key_args):
             KeyId=key_id,
             Overwrite=True,
         )
-        print(parameter_name)
-        print(response)
         logging.info(
             f"User {username}: " + parameter_name + " key written to parameter store."
         )
-        param_list = client.describe_parameters(
-            ParameterFilters=[
-                {"Key": "Name", "Values": ["SIGNIANT.mediashuttle_support_tools"]}
-            ]
-        )
-        print(param_list)
 
 
 def ecs_task_restart(config_map, username, **key_args):
