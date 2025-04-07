@@ -1,5 +1,6 @@
-import logging
 from project import values
+
+import logging
 
 logging.getLogger("botocore").setLevel(logging.CRITICAL)
 

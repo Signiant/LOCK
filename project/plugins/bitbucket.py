@@ -1,10 +1,9 @@
-import json
-import logging
+from project import values
 
 import boto3
+import json
+import logging
 import requests
-
-from project import values
 
 logging.getLogger("botocore").setLevel(logging.CRITICAL)
 

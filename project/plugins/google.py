@@ -2,17 +2,16 @@
 command line application and sample code for accessing a secret version.
 """
 
+from datetime import datetime
+from google.cloud import kms_v1, secretmanager, storage
+from google.oauth2 import service_account
+from googleapiclient.discovery import build
+from project import values
+
 import logging
 import os
 import time
 import tempfile
-from datetime import datetime
-
-from google.cloud import kms_v1, secretmanager, storage
-from google.oauth2 import service_account
-from googleapiclient.discovery import build
-
-from project import values
 
 logging.getLogger("googleapiclient.discovery_cache").setLevel(logging.CRITICAL)
 

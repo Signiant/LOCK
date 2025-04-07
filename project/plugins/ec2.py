@@ -1,8 +1,9 @@
+from project import values
+
+import boto3
 import logging
 import pprint
-import boto3
 import time
-from project import values
 
 
 def get_ec2_client(config_map, **key_args):

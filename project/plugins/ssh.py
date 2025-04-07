@@ -1,9 +1,8 @@
-import logging
-import re
-
-import paramiko
-
 from project import values
+
+import logging
+import paramiko
+import re
 
 logging.getLogger("paramiko").setLevel(logging.CRITICAL)
 

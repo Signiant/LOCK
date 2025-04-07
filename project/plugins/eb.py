@@ -1,9 +1,10 @@
 # written by K. Haggerty
-import time
-import logging.handlers
-import boto3
 from project import values
 from project.plugins.iam import get_iam_session
+
+import boto3
+import logging.handlers
+import time
 
 
 def handle_eb_update(config_map, username, **key_args):

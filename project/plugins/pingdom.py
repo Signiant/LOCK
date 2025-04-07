@@ -1,7 +1,7 @@
+from project import values
+
 import logging
 import requests
-
-from project import values
 
 
 def pause_check(config_map, username, **key_args):

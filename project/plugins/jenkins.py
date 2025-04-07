@@ -1,9 +1,9 @@
-import logging
-
 from jenkinsapi.credential import UsernamePasswordCredential
 from jenkinsapi.jenkins import Jenkins
 from jenkinsapi.utils.crumb_requester import CrumbRequester
 from project import values
+
+import logging
 
 
 # https://github.com/pycontribs/jenkinsapi/blob/master/examples/how_to/create_credentials.py

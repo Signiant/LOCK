@@ -1,13 +1,12 @@
-import logging
-import os
-from email.mime.multipart import MIMEMultipart
-from email.mime.text import MIMEText
-
-import boto3
 from botocore.exceptions import ClientError
 from bs4 import BeautifulSoup
-
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
 from project import values
+
+import boto3
+import logging
+import os
 
 
 def mail_message(config_map, username, **key_args):

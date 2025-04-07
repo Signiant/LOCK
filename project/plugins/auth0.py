@@ -1,6 +1,7 @@
+from project import values
+
 import json
 import logging
-from project import values
 import requests
 
 

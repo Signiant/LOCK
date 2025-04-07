@@ -9,6 +9,11 @@ import sys
 
 sys.path.append(LOCK_root)
 
+from project.plugins import iam
+from project.plugins.iam import validate_new_key, delete_old_key
+from project import values
+from project import utils
+
 import argparse
 import importlib
 import logging
@@ -18,10 +23,6 @@ import re
 import subprocess
 import sys
 import yaml
-from project.plugins import iam
-from project.plugins.iam import validate_new_key, delete_old_key
-from project import values
-from project import utils
 
 
 def validate_keys_for_user(userdata, config_map, username, keys_to_delete):

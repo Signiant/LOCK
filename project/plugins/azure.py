@@ -1,13 +1,14 @@
-import logging
-import msrestazure.azure_exceptions
-from azure.mgmt.compute import ComputeManagementClient
-from azure.keyvault.secrets import SecretClient
-from azure.mgmt.resource import ResourceManagementClient
-from azure.identity import ClientSecretCredential
 from azure.devops.connection import Connection
+from azure.identity import ClientSecretCredential
+from azure.keyvault.secrets import SecretClient
+from azure.mgmt.compute import ComputeManagementClient
+from azure.mgmt.resource import ResourceManagementClient
 from msrest.authentication import BasicAuthentication
 from project.plugins.ssh import ssh_server_command
 from project import values
+
+import logging
+import msrestazure.azure_exceptions
 
 logging.getLogger("azure.keyvault.secrets").setLevel(logging.CRITICAL)
 logging.getLogger("azure.mgmt.resource.resources").setLevel(logging.CRITICAL)

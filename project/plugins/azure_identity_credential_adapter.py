@@ -7,12 +7,11 @@
 # Need msrest >= 0.6.0
 # See also https://pypi.org/project/azure-identity/
 
-from msrest.authentication import BasicTokenAuthentication
-from azure.core.pipeline.policies import BearerTokenCredentialPolicy
 from azure.core.pipeline import PipelineRequest, PipelineContext
+from azure.core.pipeline.policies import BearerTokenCredentialPolicy
 from azure.core.pipeline.transport import HttpRequest
-
 from azure.identity import DefaultAzureCredential
+from msrest.authentication import BasicTokenAuthentication
 
 
 class AzureIdentityCredentialAdapter(BasicTokenAuthentication):

@@ -1,7 +1,8 @@
-import logging
-import os
 from project import values
 from subprocess import call
+
+import logging
+import os
 
 
 def run_command(_, username, **key_args):

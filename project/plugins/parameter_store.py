@@ -4,11 +4,12 @@ parameter_store.py
 AWS Parameter Store help methods - currently extending boto3
 """
 
+from project import values
+from project.plugins.iam import get_ssm_client
+
 import logging
 import sys
 import os
-from project import values
-from project.plugins.iam import get_ssm_client
 
 
 def _log_and_print_to_console(msg, log_level="info"):

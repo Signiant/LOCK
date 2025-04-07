@@ -1,9 +1,9 @@
-import logging
-import boto3
-import botocore.config
-
 from project import values
 from project.plugins.iam import get_iam_session
+
+import boto3
+import botocore.config
+import logging
 
 
 def get_s3_client(config_map):
