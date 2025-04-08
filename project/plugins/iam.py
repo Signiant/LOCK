@@ -7,7 +7,6 @@ import boto3
 import hashlib
 import hmac
 import logging
-import pytz
 import sys
 import time
 
@@ -274,7 +273,6 @@ def validate_new_key(config_map, username, user_data):
             old_key_index = 0
 
         present = datetime.now(tz=timezone.utc)
-        present = pytz.utc.localize(present)
         logging.debug(f"User {username}: Present time (UTC): %s" % str(present))
         logging.debug(
             f"User {username}: Old key time (UTC): %s" % str(old_key_use_date)
