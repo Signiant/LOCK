@@ -4,6 +4,7 @@ azure-keyvault
 azure-mgmt-common
 azure-mgmt-resource
 azure-mgmt-compute
+black
 six
 pytz>=2018.7
 jenkinsapi>=0.3.8
@@ -28,3 +29,4 @@ google-cloud-storage>=1.33.0
 google-cloud-kms>=2.2.0
 httplib2>=0.18.1
 crcmod>=1.7
+onepassword-sdk

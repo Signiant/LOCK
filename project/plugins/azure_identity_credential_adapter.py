@@ -7,15 +7,20 @@
 # Need msrest >= 0.6.0
 # See also https://pypi.org/project/azure-identity/
 
-from msrest.authentication import BasicTokenAuthentication
-from azure.core.pipeline.policies import BearerTokenCredentialPolicy
 from azure.core.pipeline import PipelineRequest, PipelineContext
+from azure.core.pipeline.policies import BearerTokenCredentialPolicy
 from azure.core.pipeline.transport import HttpRequest
-
 from azure.identity import DefaultAzureCredential
+from msrest.authentication import BasicTokenAuthentication
+
 
 class AzureIdentityCredentialAdapter(BasicTokenAuthentication):
-    def __init__(self, credential=None, resource_id="https://management.azure.com/.default", **kwargs):
+    def __init__(
+        self,
+        credential=None,
+        resource_id="https://management.azure.com/.default",
+        **kwargs
+    ):
         """Adapt any azure-identity credential to work with SDK that needs azure.common.credentials or msrestazure.
 
         Default resource is ARM (syntax of endpoint v2)
@@ -23,18 +28,16 @@ class AzureIdentityCredentialAdapter(BasicTokenAuthentication):
         :param credential: Any azure-identity credential (DefaultAzureCredential by default)
         :param str resource_id: The scope to use to get the token (default ARM)
         """
-        super(AzureIdentityCredentialAdapter, self).__init__(None)
+        super(AzureIdentityCredentialAdapter, self).__init__(None)  # type: ignore
         if credential is None:
             credential = DefaultAzureCredential()
         self._policy = BearerTokenCredentialPolicy(credential, resource_id, **kwargs)
 
-    def _make_request(self):
+    @staticmethod
+    def _make_request():
         return PipelineRequest(
-            HttpRequest(
-                "AzureIdentityCredentialAdapter",
-                "https://fakeurl"
-            ),
-            PipelineContext(None)
+            HttpRequest("AzureIdentityCredentialAdapter", "https://fakeurl"),
+            PipelineContext(None),
         )
 
     def set_token(self):
