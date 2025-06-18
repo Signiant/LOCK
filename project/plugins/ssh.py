@@ -143,9 +143,9 @@ def ssh_server_command(_, username, **key_args):
     list_of_commands = key_args.get("commands")
     list_of_commands = [
         command.replace(
-            "<new_key_name>", values.access_keys[username][0].replace("/", "\/")
+            "<new_key_name>", values.access_keys[username][0]
         ).replace(
-            "<new_key_secret>", values.access_keys[username][1].replace("/", "\/")
+            "<new_key_secret>", values.access_keys[username][1]
         )
         for command in list_of_commands
     ]
