@@ -73,7 +73,12 @@ def update_env_vars(username, client, file_path, commands, markers, password=Non
         line_num = find_line_number(username, client, file_path, marker, password)
         if line_num is not None:
             commands[i] = commands[i].replace("<line>", str(line_num))
-            logging.info(f"User {username}: Updated command: {commands[i]}")
+            if 'secret' not in commands[i].lower():
+                logging.info(f"User {username}: Updated command: {commands[i]}")
+            else:
+                if values.hide_key is True:
+                    # TODO: create an actual function to redact ONLY the secret text
+                    logging.info(f"User {username}: Updated command: <redacted>")
             execute_command(username, client, commands[i], password)
 
 
