@@ -196,13 +196,14 @@ def get_new_key(config_map, username, **kwargs):
         if len(existing_keys) < 2:
             # create a new key
             new_key = create_key(client, username)
+            redacted_secret = '****************************************'
             logging.info(f"User {username}: New key created for user")
             update_access_key(username, new_key)
-            # TODO: Print secret key to log file even if hide_key is provided
+            logging.debug(f"User {username}: New AccessKey: {str(new_key)}")
             if values.hide_key is True:
-                logging.info(f"User {username}: New AccessKey: " + str(new_key[0]))
+                logging.info(f"User {username}: New AccessKey: ('{str(new_key[0])}', '{redacted_secret}')")
             else:
-                logging.info(f"User {username}: New AccessKey: " + str(new_key))
+                logging.info(f"User {username}: New AccessKey: {str(new_key)}")
             return new_key
         else:
             # There are still 2 keys present - can't create another one

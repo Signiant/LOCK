@@ -20,9 +20,9 @@ import logging
 import logging.handlers
 import os
 import re
-import subprocess
 import sys
 import yaml
+import requests
 
 
 def validate_keys_for_user(userdata, config_map, username, keys_to_delete):
@@ -164,15 +164,20 @@ def export_environment_variables(**kwargs):
         os.environ[name] = str(value)
 
 
-def verify_vpn_enabled():
-    logging.info("Checking if connected to VPN...")
-    response = subprocess.run(["ifconfig", "ppp0"], capture_output=True, text=True)
-    code = response.returncode
-    if code != 0:
-        logging.error("Please confirm that you are connected to the VPN.")
-        sys.exit(1)
+def verify_public_ip(required_public_ip):
+    if required_public_ip is False:
+        logging.info("Skipping public IP verification.")
     else:
-        logging.info("User is connected to VPN (interface ppp0). LOCK will continue.")
+        if required_public_ip.lower() == "false":
+            logging.info("Skipping public IP verification.")
+        else:
+            logging.info(f"Checking if current public IP is {required_public_ip} (either in the office or on VPN)")
+            myip = requests.get('https://api.ipify.org').text
+            if myip == required_public_ip:
+                logging.info(f'Verified public IP address is: {myip} - LOCK will continue')
+            else:
+                logging.error(f'Incorrect public IP detected ({myip}) - LOCK cannot continue')
+                sys.exit(1)
 
 
 def read_config_file(path):
@@ -284,8 +289,8 @@ def main():
         if config_map["RequiredParameters"].get("env"):
             export_environment_variables(**config_map["RequiredParameters"]["env"])
 
-    if os.getenv("VPN_REQUIRED", "False").lower() == "true":
-        verify_vpn_enabled()
+    public_ip_required = os.getenv("PUBLIC_IP_REQUIRED", False)
+    verify_public_ip(public_ip_required)
 
     # args.dryRun = True
     username = args.user
