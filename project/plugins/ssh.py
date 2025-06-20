@@ -31,11 +31,18 @@ def load_ssh_key(username, pkey_path, password):
     return None
 
 
-def find_line_number(username, client, file_path, marker, password=None):
+def find_line_number(username, client, file_path, marker, password=None, sudo_cmd=False):
+    logging.debug(f'User {username}: Determining line number for sed command')
     find_line_cmd = f"sed -n '/{marker}/=' {file_path}"
-    if password:
-        find_line_cmd = f"echo '{password}' | sudo -S {find_line_cmd}"
+    if sudo_cmd:
+        logging.debug(f'prefacing sed command with sudo')
+        find_line_cmd = f"sudo {find_line_cmd}"
+    else:
+        if password:
+            find_line_cmd = f"echo '{password}' | sudo -S {find_line_cmd}"
 
+    # TODO: the find_line_cmd can have a secret in it - logging debug to file - redact if hidekey is true?
+    logging.debug(f'User {username}: find_line_cmd: {find_line_cmd}')
     stdin, stdout, stderr = client.exec_command(find_line_cmd, get_pty=True)
     output = stdout.read().decode("utf-8")
     logging.debug(f"User {username}: Output from find_line_cmd: {output}")
@@ -49,8 +56,6 @@ def find_line_number(username, client, file_path, marker, password=None):
 
 
 def execute_command(username, client, command, password=None):
-    command = command.replace("<q>", '\\"')
-
     if password is not None:
         command = command.replace("<password>", password)
 
@@ -68,12 +73,23 @@ def execute_command(username, client, command, password=None):
             logging.error(f"User {username}: Failed to execute command - {e}")
 
 
-def update_env_vars(username, client, file_path, commands, markers, password=None):
+def update_env_vars(username, client, commands, markers, password=None):
     for i, marker in enumerate(markers):
-        line_num = find_line_number(username, client, file_path, marker, password)
+        sudo_cmd = False
+        if commands[i].startswith('sudo'):
+            sudo_cmd = True
+        file_path = commands[i].split()[-1].rstrip('"'),
+        line_num = find_line_number(username, client, file_path, marker, password, sudo_cmd)
         if line_num is not None:
             commands[i] = commands[i].replace("<line>", str(line_num))
-            logging.info(f"User {username}: Updated command: {commands[i]}")
+            if 'secret' not in commands[i].lower():
+                logging.info(f"User {username}: Updated command: {commands[i]}")
+            else:
+                if values.hide_key is True:
+                    # TODO: create an actual function to redact ONLY the secret text
+                    logging.info(f"User {username}: Updated command: <redacted>")
+                else:
+                    logging.info(f"User {username}: Updated command: {commands[i]}")
             execute_command(username, client, commands[i], password)
 
 
@@ -124,9 +140,7 @@ def ssh_server(
             client.connect(hostname, port=port, username=ssh_username, **connect_args)
 
         if markers is not None:
-            update_env_vars(
-                username, client, commands[0].split()[-1], commands, markers, password
-            )
+            update_env_vars(username, client, commands, markers, password)
         else:
             logging.info(f"User {username}: Executing commands on {hostname}")
             for command in commands:
@@ -143,9 +157,9 @@ def ssh_server_command(_, username, **key_args):
     list_of_commands = key_args.get("commands")
     list_of_commands = [
         command.replace(
-            "<new_key_name>", values.access_keys[username][0].replace("/", "\/")
+            "<new_key_name>", values.access_keys[username][0]
         ).replace(
-            "<new_key_secret>", values.access_keys[username][1].replace("/", "\/")
+            "<new_key_secret>", values.access_keys[username][1]
         )
         for command in list_of_commands
     ]
