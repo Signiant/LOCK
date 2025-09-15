@@ -45,7 +45,12 @@ def find_line_number(username, client, file_path, marker, password=None, sudo_cm
     logging.debug(f'User {username}: find_line_cmd: {find_line_cmd}')
     stdin, stdout, stderr = client.exec_command(find_line_cmd, get_pty=True)
     output = stdout.read().decode("utf-8")
+    exit_code = stdout.channel.recv_exit_status()
     logging.debug(f"User {username}: Output from find_line_cmd: {output}")
+    
+    if exit_code != 0:
+        logging.error(f"User {username}: Command failed with exit code {exit_code}: {output.strip()}")
+        return None
 
     lines = re.findall(r"\d+", output)
     if lines:
@@ -78,7 +83,7 @@ def update_env_vars(username, client, commands, markers, password=None):
         sudo_cmd = False
         if commands[i].startswith('sudo'):
             sudo_cmd = True
-        file_path = commands[i].split()[-1].rstrip('"'),
+        file_path = commands[i].split()[-1].rstrip('"')
         line_num = find_line_number(username, client, file_path, marker, password, sudo_cmd)
         if line_num is not None:
             commands[i] = commands[i].replace("<line>", str(line_num))
