@@ -78,7 +78,7 @@ def update_env_vars(username, client, commands, markers, password=None):
         sudo_cmd = False
         if commands[i].startswith('sudo'):
             sudo_cmd = True
-        file_path = commands[i].split()[-1].rstrip('"'),
+        file_path = commands[i].split()[-1].rstrip('"')
         line_num = find_line_number(username, client, file_path, marker, password, sudo_cmd)
         if line_num is not None:
             commands[i] = commands[i].replace("<line>", str(line_num))
