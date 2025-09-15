@@ -45,7 +45,12 @@ def find_line_number(username, client, file_path, marker, password=None, sudo_cm
     logging.debug(f'User {username}: find_line_cmd: {find_line_cmd}')
     stdin, stdout, stderr = client.exec_command(find_line_cmd, get_pty=True)
     output = stdout.read().decode("utf-8")
+    exit_code = stdout.channel.recv_exit_status()
     logging.debug(f"User {username}: Output from find_line_cmd: {output}")
+    
+    if exit_code != 0:
+        logging.error(f"User {username}: Command failed with exit code {exit_code}: {output.strip()}")
+        return None
 
     lines = re.findall(r"\d+", output)
     if lines:
