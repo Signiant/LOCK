@@ -93,7 +93,7 @@ def rotate_instance_groups(config_map, username, **key_args):
 def rotate_fg_instance_groups(config_map, username, **key_args):
     auth = config_map["Global"]["google_credentials"]["fg_cred"]
     regions = key_args.get("regions")
-    rotate_gcp_instance_group(username, auth, regions, 3)
+    rotate_gcp_instance_group(username, auth, regions, 1)
 
 
 def rotate_gcp_instance_group(username, auth, regions, max_unavailable):
