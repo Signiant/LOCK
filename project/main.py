@@ -31,8 +31,12 @@ def validate_keys_for_user(userdata, config_map, username, keys_to_delete):
         return
     user_data = userdata.get(username_to_validate)
     if user_data.get("plugins"):
-        if user_data.get("plugins")[0].get("iam"):
-            if "get_new_key" in user_data.get("plugins")[0].get("iam")[0]:
+        iam_plugin = user_data.get("plugins")[0].get("iam")
+        if iam_plugin:
+            if (
+                "get_new_key" in iam_plugin[0]
+                or "rotate_ses_smtp_user" in iam_plugin[0]
+            ):
                 validation_result = validate_new_key(
                     config_map, username_to_validate, user_data
                 )
@@ -41,7 +45,7 @@ def validate_keys_for_user(userdata, config_map, username, keys_to_delete):
                     keys_to_delete.append((username_to_validate, old_key, prompt))
             else:
                 logging.info(
-                    f"   No get_new_key section for iam plugin for user {username_to_validate} - skipping"
+                    f"   No get_new_key or rotate_ses_smtp_user section for iam plugin for user {username_to_validate} - skipping"
                 )
         else:
             logging.info(
@@ -171,12 +175,18 @@ def verify_public_ip(required_public_ip):
         if required_public_ip.lower() == "false":
             logging.info("Skipping public IP verification.")
         else:
-            logging.info(f"Checking if current public IP is {required_public_ip} (either in the office or on VPN)")
-            myip = requests.get('https://api.ipify.org').text
+            logging.info(
+                f"Checking if current public IP is {required_public_ip} (either in the office or on VPN)"
+            )
+            myip = requests.get("https://api.ipify.org").text
             if myip == required_public_ip:
-                logging.info(f'Verified public IP address is: {myip} - LOCK will continue')
+                logging.info(
+                    f"Verified public IP address is: {myip} - LOCK will continue"
+                )
             else:
-                logging.error(f'Incorrect public IP detected ({myip}) - LOCK cannot continue')
+                logging.error(
+                    f"Incorrect public IP detected ({myip}) - LOCK cannot continue"
+                )
                 sys.exit(1)
 
 

@@ -146,6 +146,9 @@ def create_key(client, username):
 
 def delete_old_key(user_data, config_map, username, key_id, prompt):
     iam_data = user_data.get("plugins")[0].get("iam")[0].get("get_new_key")
+    if iam_data is None:
+        iam_data = user_data.get("plugins")[0].get("iam")[0].get("rotate_ses_smtp_user")
+
     aws_profile = None
     if iam_data:
         if "credential_profile" in iam_data:
@@ -196,12 +199,14 @@ def get_new_key(config_map, username, **kwargs):
         if len(existing_keys) < 2:
             # create a new key
             new_key = create_key(client, username)
-            redacted_secret = '****************************************'
+            redacted_secret = "****************************************"
             logging.info(f"User {username}: New key created for user")
             update_access_key(username, new_key)
             logging.debug(f"User {username}: New AccessKey: {str(new_key)}")
             if values.hide_key is True:
-                logging.info(f"User {username}: New AccessKey: ('{str(new_key[0])}', '{redacted_secret}')")
+                logging.info(
+                    f"User {username}: New AccessKey: ('{str(new_key[0])}', '{redacted_secret}')"
+                )
             else:
                 logging.info(f"User {username}: New AccessKey: {str(new_key)}")
             return new_key
@@ -234,6 +239,9 @@ def validate_new_key(config_map, username, user_data):
     logging.info(f"User {username}: Validating keys for user")
 
     iam_data = user_data.get("plugins")[0].get("iam")[0].get("get_new_key")
+    if iam_data is None:
+        iam_data = user_data.get("plugins")[0].get("iam")[0].get("rotate_ses_smtp_user")
+
     aws_profile = None
     if iam_data:
         if "credential_profile" in iam_data:
