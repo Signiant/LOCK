@@ -87,16 +87,16 @@ def wait_for_operation(username, compute, project, region, operation):
 def rotate_instance_groups(config_map, username, **key_args):
     auth = config_map["Global"]["google_credentials"]["client_cred"]
     regions = key_args.get("regions")
-    rotate_gcp_instance_group(username, auth, regions, 2)
+    rotate_gcp_instance_group(username, auth, regions)
 
 
 def rotate_fg_instance_groups(config_map, username, **key_args):
     auth = config_map["Global"]["google_credentials"]["fg_cred"]
     regions = key_args.get("regions")
-    rotate_gcp_instance_group(username, auth, regions, 1)
+    rotate_gcp_instance_group(username, auth, regions)
 
 
-def rotate_gcp_instance_group(username, auth, regions, max_unavailable):
+def rotate_gcp_instance_group(username, auth, regions, max_unavailable=2):
     credentials = service_account.Credentials.from_service_account_file(auth)
     # authenticate with compute api
     try:
@@ -151,10 +151,10 @@ def rotate_gcp_instance_group(username, auth, regions, max_unavailable):
             "updatePolicy": {
                 "minimalAction": "REPLACE",
                 "type": "PROACTIVE",
-                "maxSurge": {"fixed": 0},
-                "maxUnavailable": {"fixed": max_unavailable},
+                "maxSurge": {"fixed": 3},
+                "maxUnavailable": {"fixed": 0},
                 "minReadySec": 300,
-                "replacementMethod": "recreate",
+                "replacementMethod": "substitute",
             },
             "versions": [{"instanceTemplate": instance_template, "name": version}],
         }
