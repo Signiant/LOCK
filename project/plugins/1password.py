@@ -97,7 +97,7 @@ def create_item(
 
 def get_item_id(client: Client, vault_id: str, item_title: str) -> str:
     item_id = None
-    items = asyncio.run(client.items.list(vault_id))
+    items = asyncio.run(client.items.list_all(vault_id)).obj
     for item in items:
         if item.title == item_title:
             item_id = item.id
@@ -107,7 +107,7 @@ def get_item_id(client: Client, vault_id: str, item_title: str) -> str:
 
 def get_vault_id(client: Client, vault_title: str) -> str:
     vault_id = None
-    vaults = asyncio.run(client.vaults.list())
+    vaults = asyncio.run(client.vaults.list_all()).obj
     for vault in vaults:
         if vault.title == vault_title:
             vault_id = vault.id
