@@ -17,6 +17,14 @@ def get_iam_session():
     return boto3.Session(profile_name=values.profile)
 
 
+def get_profile_label(key_args):
+    if key_args.get("credential_profile") is not None:
+        return key_args.get("credential_profile")
+    if values.profile is not None:
+        return values.profile
+    return "static credentials"
+
+
 def get_iam_client(config_map, **kwargs):
     if kwargs.get("credential_profile") is not None:
         profile_name = kwargs.get("credential_profile")
@@ -384,14 +392,13 @@ def rotate_ses_smtp_user(config_map, username, **key_args):
 
             user_password = (key[0], password)
             update_user_password(user_password)
-            logging.info(f"User {username}: new user and password created")
             if values.hide_key is True:
-                print(
-                    f"                           New Username: {str(user_password[0])}"
+                logging.info(
+                    f"User {username}: New user and password created. New Username: {user_password[0]}"
                 )
             else:
-                print(
-                    f"                           New Username, Password: {str(user_password)}"
+                logging.info(
+                    f"User {username}: New user and password created. New Username, Password: {user_password}"
                 )
         else:
             logging.error(f"User {username}: Unable to get new key - skipping")
@@ -440,7 +447,8 @@ def store_password_parameter_store(config_map, username, **key_args):
             Overwrite=True,
         )
         logging.info(
-            f"User {username}: username and password written to parameter store."
+            f"User {username}: username and password written to parameter store "
+            f"in the '{get_profile_label(key_args)}' account."
         )
 
 
@@ -478,7 +486,8 @@ def store_key_parameter_store(config_map, username, **key_args):
             Overwrite=True,
         )
         logging.info(
-            f"User {username}: " + parameter_name + " key written to parameter store."
+            f"User {username}: {parameter_name} key written to parameter store "
+            f"in the '{get_profile_label(key_args)}' account."
         )
 
 
@@ -537,7 +546,6 @@ def get_ssm_client(config_map, **key_args):
 
     if key_args.get("credential_profile") is not None:
         profile_name = key_args.get("credential_profile")
-        print(profile_name)
         session = boto3.Session(profile_name=profile_name, region_name=region_name)
         return session.client("ssm")
     elif values.profile is not None:
@@ -557,7 +565,6 @@ def get_ecs_client(config_map, **key_args):
 
     if key_args.get("credential_profile") is not None:
         profile_name = key_args.get("credential_profile")
-        print(profile_name)
         session = boto3.Session(profile_name=profile_name, region_name=region_name)
         return session.client("ecs")
     elif values.profile is not None:
