@@ -3,7 +3,7 @@
 from pathlib import Path
 
 LOCK_root = str(Path(__file__).resolve().parent.parent)
-print(f"Project is running from: [{LOCK_root}]")
+print(f"Project is running from: {LOCK_root}")
 
 import sys
 
@@ -25,10 +25,16 @@ import yaml
 import requests
 
 
-def validate_keys_for_user(userdata, config_map, username, keys_to_delete):
+def resolve_target_users(all_users, usernames):
+    if usernames == "all":
+        return all_users
+    if isinstance(usernames, str):
+        usernames = [usernames]
+    return [u for u in all_users if next(iter(u)) in usernames]
+
+
+def validate_keys_for_user(userdata, config_map):
     username_to_validate = next(iter(userdata))
-    if username != "all" and username != username_to_validate:
-        return
     user_data = userdata.get(username_to_validate)
     if user_data.get("plugins"):
         iam_plugin = user_data.get("plugins")[0].get("iam")
@@ -42,7 +48,9 @@ def validate_keys_for_user(userdata, config_map, username, keys_to_delete):
                 )
                 if validation_result is not None:
                     old_key, prompt = validation_result
-                    keys_to_delete.append((username_to_validate, old_key, prompt))
+                    delete_old_key(
+                        user_data, config_map, username_to_validate, old_key, prompt
+                    )
             else:
                 logging.info(
                     f"   No get_new_key or rotate_ses_smtp_user section for iam plugin for user {username_to_validate} - skipping"
@@ -57,24 +65,15 @@ def validate_keys_for_user(userdata, config_map, username, keys_to_delete):
         )
 
 
-def validate_keys(username, all_users, config_map):
-    keys_to_delete = []
-    utils.run_threads(
-        all_users, validate_keys_for_user, config_map, username, keys_to_delete
-    )
-    for owner, key, prompt in keys_to_delete:
-        user_data = [data for data in all_users if next(iter(data)) == owner][0][owner]
-        delete_old_key(user_data, config_map, owner, key, prompt)
+def validate_keys(usernames, all_users, config_map):
+    target_users = resolve_target_users(all_users, usernames)
+    for user_data in target_users:
+        validate_keys_for_user(user_data, config_map)
 
 
-def rotate_update(
-    user_data, config_map, username=None, ssh_username=None, ssh_password=None
-):
-    if username is None:
-        username = next(iter(user_data))
-        modules = user_data[username]["plugins"]
-    else:
-        modules = user_data["plugins"]
+def rotate_update(user_data, config_map, ssh_username=None, ssh_password=None):
+    username = next(iter(user_data))
+    modules = user_data[username]["plugins"]
 
     update_access_key(username, ("", ""))
 
@@ -105,13 +104,11 @@ def rotate_update(
                 return
 
 
-def rotate_keys(username, all_users, config_map, user_data, ssh_username, ssh_password):
-    if username == "all":
-        utils.run_threads(
-            all_users, rotate_update, config_map, None, ssh_username, ssh_password
-        )
-    else:
-        rotate_update(user_data, config_map, username, ssh_username, ssh_password)
+def rotate_keys(usernames, all_users, config_map, ssh_username, ssh_password):
+    target_users = resolve_target_users(all_users, usernames)
+    utils.run_threads(
+        target_users, rotate_update, config_map, ssh_username, ssh_password
+    )
 
 
 def list_keys_for_user(user_data, config_map):
@@ -119,11 +116,9 @@ def list_keys_for_user(user_data, config_map):
     iam.list_keys(config_map, username)
 
 
-def list_keys(username, all_users, config_map):
-    if username == "all":
-        utils.run_threads(all_users, list_keys_for_user, config_map)
-    else:
-        iam.list_keys(config_map, username)
+def list_keys(usernames, all_users, config_map):
+    target_users = resolve_target_users(all_users, usernames)
+    utils.run_threads(target_users, list_keys_for_user, config_map)
 
 
 def update_access_key(username, key):
@@ -210,7 +205,12 @@ def main():
     parser = argparse.ArgumentParser(
         description="LOCK Let's Occasionally Circulate Keys"
     )
-    parser.add_argument("-u", "--user", help="aws user to rotate", required=False)
+    parser.add_argument(
+        "-u",
+        "--users",
+        help="aws user to rotate, or a comma-separated list of users",
+        required=False,
+    )
     parser.add_argument(
         "-c", "--config", help="Full path to a config file", required=True
     )
@@ -303,9 +303,12 @@ def main():
     verify_public_ip(public_ip_required)
 
     # args.dryRun = True
-    username = args.user
-    if args.user is None:
-        username = "test_lock"  # args.user
+    if args.users:
+        usernames = [u.strip() for u in args.users.split(",") if u.strip()]
+        if usernames == ["all"]:
+            usernames = "all"
+    else:
+        usernames = "test_lock"
     if args.action is None:
         args.action = "list"  # 'instance:status'
 
@@ -324,30 +327,32 @@ def main():
             ssh_password = input(f"Password for {args.ssh_username}: ")
 
     logging.debug(f"Config file {str(config_map)}")
-    user_data = None
     all_users = config_map["Users"]
-    for userdata in all_users:
-        if username == (next(iter(userdata))):
-            user_data = userdata.get(username)
 
-    if "user_data" not in locals() and username != "all":
-        logging.info(username + " does not exist in the config file.")
-        sys.exit()
+    if usernames != "all":
+        requested = usernames if isinstance(usernames, list) else [usernames]
+        all_usernames = {next(iter(u)) for u in all_users}
+        missing = [u for u in requested if u not in all_usernames]
+        if missing:
+            logging.info(f"{', '.join(missing)} does not exist in the config file.")
+            sys.exit()
 
     # get manually entered key, if any
     if args.key is not None:
-        update_access_key(username, args.key)
+        if isinstance(usernames, list) and len(usernames) != 1:
+            logging.error("-k/--key can only be used with a single user.")
+            sys.exit(1)
+        key_username = usernames[0] if isinstance(usernames, list) else usernames
+        update_access_key(key_username, args.key)
 
     if args.action == "list":
-        list_keys(username, all_users, config_map)
+        list_keys(usernames, all_users, config_map)
     elif args.action == "rotate":  # run functions listed in the config file.
-        rotate_keys(
-            username, all_users, config_map, user_data, args.ssh_username, ssh_password
-        )
+        rotate_keys(usernames, all_users, config_map, args.ssh_username, ssh_password)
     elif (
         args.action == "validate"
     ):  # validate that new key is being used and delete the old unused key
-        validate_keys(username, all_users, config_map)
+        validate_keys(usernames, all_users, config_map)
 
 
 if __name__ == "__main__":

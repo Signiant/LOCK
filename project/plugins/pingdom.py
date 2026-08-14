@@ -25,7 +25,10 @@ def pause_check(config_map, username, **key_args):
             if response.status_code == 200:
                 logging.info(f"User {username}: {check} paused")
             else:
-                logging.error(f"User {username}: error pausing {check}")
+                logging.error(
+                    f"User {username}: error pausing {check} "
+                    f"(HTTP {response.status_code}): {response.text}"
+                )
 
 
 def unpause_check(config_map, username, **key_args):
@@ -50,4 +53,7 @@ def unpause_check(config_map, username, **key_args):
             if response.status_code == 200:
                 logging.info(f"User {username}: {check} unpaused")
             else:
-                logging.error(f"User {username}: error unpausing {check}")
+                logging.error(
+                    f"User {username}: error unpausing {check} "
+                    f"(HTTP {response.status_code}): {response.text}"
+                )

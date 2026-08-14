@@ -42,9 +42,15 @@ def __get_bitbucket_token(config_map, username, **kwargs):
         "client_id": bb_api_key,
         "client_secret": bb_api_secret,
     }
-    access_token = requests.post(token_url, data=data).json()
-    api_token = access_token["access_token"]
-    return api_token
+    response = requests.post(token_url, data=data)
+    access_token = response.json()
+    if "access_token" not in access_token:
+        logging.error(
+            f"User {username}: Error retrieving Bitbucket API token "
+            f"(HTTP {response.status_code}): {access_token}"
+        )
+        return None
+    return access_token["access_token"]
 
 
 def __get_variable(api_token, workspace, variable_uuid):

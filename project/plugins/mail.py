@@ -7,6 +7,7 @@ from project import values
 import boto3
 import logging
 import os
+import re
 
 
 def mail_message(config_map, username, **key_args):
@@ -50,12 +51,28 @@ def mail_message(config_map, username, **key_args):
         )
 
 
+URL_RE = re.compile(r"https?://\S+")
+
+
 class EmailTemplate:
     def __init__(self, template_name="", htmlvalues="", html=True, content_title=""):
         self.template_name = template_name
         self.htmlvalues = htmlvalues
         self.html = html
         self.content_title = content_title
+
+    @staticmethod
+    def _append_linkified(soup, parent, text):
+        last = 0
+        for match in URL_RE.finditer(text):
+            if match.start() > last:
+                parent.append(text[last : match.start()])
+            link = soup.new_tag("a", href=match.group(0))
+            link.string = match.group(0)
+            parent.append(link)
+            last = match.end()
+        if last < len(text):
+            parent.append(text[last:])
 
     def render(self):
         path = os.path.dirname(__file__)
@@ -69,7 +86,12 @@ class EmailTemplate:
             content1 = open(path + "/" + self.template_name).read()
 
         html = BeautifulSoup(content1, "html.parser")
-        html.find("div", {"id": "title"}).append(self.content_title)
+        title_div = html.find("div", {"id": "title"})
+        lines = re.split(r"\\n|\n", self.content_title)
+        for line in lines:
+            paragraph = html.new_tag("p", style="margin: 0 0 16px 0;")
+            self._append_linkified(html, paragraph, line.strip())
+            title_div.append(paragraph)
 
         return str(html)
 
@@ -124,7 +146,11 @@ class MailMessage(object):
 
 
 def send_ses(username, config_map, mail_msg):
-    if values.profile is not None:
+    credential_profile = config_map["Global"]["mail"].get("credential_profile")
+    if credential_profile is not None:
+        session = boto3.Session(profile_name=credential_profile, region_name="us-east-1")
+        ses = session.client("ses")
+    elif values.profile is not None:
         session = boto3.Session(profile_name=values.profile, region_name="us-east-1")
         ses = session.client("ses")
     else:

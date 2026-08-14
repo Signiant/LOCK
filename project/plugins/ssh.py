@@ -1,25 +1,71 @@
 from project import values
 
+import base64
 import logging
+import nacl.signing
 import paramiko
 import re
 
 logging.getLogger("paramiko").setLevel(logging.CRITICAL)
 
 
+def _asn1_read_len(data, i):
+    first = data[i]
+    i += 1
+    if first & 0x80 == 0:
+        return first, i
+    n = first & 0x7F
+    return int.from_bytes(data[i : i + n], "big"), i + n
+
+
+def _load_ed25519_pkcs8_v2(pem_text):
+    """
+    1Password exports unencrypted Ed25519 keys as an RFC 5958 v2
+    OneAsymmetricKey, which appends an optional public-key field after the
+    standard PKCS#8 version/algorithm/privateKey fields. OpenSSL parses this
+    fine, but the `cryptography` release paramiko's PKey.from_path() relies
+    on rejects it as "extra data". Pull the raw 32-byte seed out ourselves
+    to sidestep that parser.
+    """
+    body = "".join(
+        line.strip()
+        for line in pem_text.splitlines()
+        if line and "BEGIN" not in line and "END" not in line
+    )
+    der = base64.b64decode(body)
+
+    i = 1
+    _, i = _asn1_read_len(der, i)  # outer SEQUENCE header
+    length, i = _asn1_read_len(der, i + 1)  # version (INTEGER)
+    i += length
+    length, i = _asn1_read_len(der, i + 1)  # algorithm identifier (SEQUENCE)
+    i += length
+    length, i = _asn1_read_len(der, i + 1)  # privateKey (OCTET STRING)
+    octet_string = der[i : i + length]
+    inner_length, inner_start = _asn1_read_len(octet_string, 1)
+    seed = octet_string[inner_start : inner_start + inner_length]
+
+    signing_key = nacl.signing.SigningKey(seed)
+    key = paramiko.Ed25519Key.__new__(paramiko.Ed25519Key)
+    key.public_blob = None
+    key._signing_key = signing_key
+    key._verifying_key = signing_key.verify_key
+    return key
+
+
 def load_ssh_key(username, pkey_path, password):
     try:
-        with open(pkey_path, "r") as key_file:
-            key_data = key_file.read()
-
-        if "BEGIN RSA PRIVATE KEY" in key_data:
-            return paramiko.RSAKey.from_private_key_file(pkey_path, password=password)
-        elif "BEGIN OPENSSH PRIVATE KEY" in key_data:
-            return paramiko.Ed25519Key.from_private_key_file(
-                pkey_path, password=password
-            )
-        else:
-            raise ValueError("Unsupported key format")
+        return paramiko.PKey.from_path(pkey_path, passphrase=password)
+    except ValueError as e:
+        if password is None and "extra data" in str(e).lower():
+            try:
+                with open(pkey_path, "r") as key_file:
+                    pem_text = key_file.read()
+                if "BEGIN PRIVATE KEY" in pem_text:
+                    return _load_ed25519_pkcs8_v2(pem_text)
+            except Exception:
+                pass
+        logging.error(f"User {username}: Unexpected error: {e}")
     except paramiko.PasswordRequiredException:
         logging.error(
             f"User {username}: SSH key is encrypted and requires a passphrase."
@@ -130,19 +176,16 @@ def ssh_server(
                 look_for_keys=False,
             )
         else:
-            connect_args = {}
-            if password is not None:
-                key = load_ssh_key(username, pkey, password)
-                if key is None:
-                    logging.error(
-                        f"User {username}: Error connecting to {hostname}: Failed to load the SSH key at {pkey}"
-                    )
-                    return
-                connect_args["pkey"] = key
-            else:
-                connect_args["key_filename"] = pkey
+            key = load_ssh_key(username, pkey, password)
+            if key is None:
+                logging.error(
+                    f"User {username}: Error connecting to {hostname}: Failed to load the SSH key at {pkey}"
+                )
+                return
             logging.info(f"User {username}: Authenticating with public key")
-            client.connect(hostname, port=port, username=ssh_username, **connect_args)
+            client.connect(
+                hostname, port=port, username=ssh_username, pkey=key
+            )
 
         if markers is not None:
             update_env_vars(username, client, commands, markers, password)

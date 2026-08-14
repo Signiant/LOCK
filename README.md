@@ -30,6 +30,12 @@ The config.yaml file need to be modified before used.
 $ python3 -m main.py -c "/path/to/config.yaml" -a rotate -u all
 ```
 
+`-u`/`--users` also accepts a single user or a comma-separated list:
+
+```bash
+$ python3 -m main.py -c "/path/to/config.yaml" -a rotate -u nagios,skydrop-azure
+```
+
 ## Running LOCK using Docker 🐳
 
 Pull the docker container:
