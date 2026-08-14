@@ -33,7 +33,7 @@ def resolve_target_users(all_users, usernames):
     return [u for u in all_users if next(iter(u)) in usernames]
 
 
-def validate_keys_for_user(userdata, config_map, keys_to_delete):
+def validate_keys_for_user(userdata, config_map):
     username_to_validate = next(iter(userdata))
     user_data = userdata.get(username_to_validate)
     if user_data.get("plugins"):
@@ -48,7 +48,9 @@ def validate_keys_for_user(userdata, config_map, keys_to_delete):
                 )
                 if validation_result is not None:
                     old_key, prompt = validation_result
-                    keys_to_delete.append((username_to_validate, old_key, prompt))
+                    delete_old_key(
+                        user_data, config_map, username_to_validate, old_key, prompt
+                    )
             else:
                 logging.info(
                     f"   No get_new_key or rotate_ses_smtp_user section for iam plugin for user {username_to_validate} - skipping"
@@ -64,13 +66,9 @@ def validate_keys_for_user(userdata, config_map, keys_to_delete):
 
 
 def validate_keys(usernames, all_users, config_map):
-    keys_to_delete = []
     target_users = resolve_target_users(all_users, usernames)
     for user_data in target_users:
-        validate_keys_for_user(user_data, config_map, keys_to_delete)
-    for owner, key, prompt in keys_to_delete:
-        user_data = [data for data in all_users if next(iter(data)) == owner][0][owner]
-        delete_old_key(user_data, config_map, owner, key, prompt)
+        validate_keys_for_user(user_data, config_map)
 
 
 def rotate_update(user_data, config_map, ssh_username=None, ssh_password=None):
