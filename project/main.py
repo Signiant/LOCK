@@ -23,6 +23,10 @@ import re
 import sys
 import yaml
 import requests
+from dotenv import load_dotenv
+
+# Matches ${NAME} references in config values, resolved from the environment
+ENV_REFERENCE = re.compile(r"\$\{([A-Za-z_][A-Za-z0-9_]*)\}")
 
 
 def resolve_target_users(all_users, usernames):
@@ -196,7 +200,46 @@ def read_config_file(path):
             f"Error: Unable to open config file {path} or invalid Yaml {str(e)}"
         )
         sys.exit(1)
+
+    missing = set()
+    config_map = resolve_env_references(config_map, missing)
+    if missing:
+        logging.error(
+            f"Error: Config references environment variables that are not set "
+            f"(add them to your secrets file): {', '.join(sorted(missing))}"
+        )
+        sys.exit(1)
     return config_map
+
+
+def load_secrets_file(path, required):
+    if not os.path.isfile(path):
+        if required:
+            logging.error(f"Error: Secrets file {path} not found")
+            sys.exit(1)
+        logging.debug(f"No secrets file at {path} - using existing environment only")
+        return
+    logging.debug(f"Loading secrets from {path}")
+    # Variables already set in the environment take precedence over the file
+    load_dotenv(path, override=False)
+
+
+def resolve_env_references(node, missing):
+    if isinstance(node, dict):
+        return {k: resolve_env_references(v, missing) for k, v in node.items()}
+    if isinstance(node, list):
+        return [resolve_env_references(v, missing) for v in node]
+    if isinstance(node, str):
+
+        def substitute(match):
+            name = match.group(1)
+            if name not in os.environ:
+                missing.add(name)
+                return match.group(0)
+            return os.environ[name]
+
+        return ENV_REFERENCE.sub(substitute, node)
+    return node
 
 
 def main():
@@ -213,6 +256,12 @@ def main():
     )
     parser.add_argument(
         "-c", "--config", help="Full path to a config file", required=True
+    )
+    parser.add_argument(
+        "-s",
+        "--secrets",
+        help="Path to a dotenv-style secrets file whose variables the config references as ${NAME} (default: .secrets next to the config file)",
+        required=False,
     )
     parser.add_argument(
         "-a",
@@ -286,6 +335,10 @@ def main():
     root_logger.addHandler(file_handler)
     root_logger.addHandler(console_handler)
 
+    secrets_path = args.secrets or os.path.join(
+        os.path.dirname(os.path.abspath(args.config)), ".secrets"
+    )
+    load_secrets_file(secrets_path, required=args.secrets is not None)
     config_map = read_config_file(args.config)
 
     if "RequiredParameters" in config_map:
