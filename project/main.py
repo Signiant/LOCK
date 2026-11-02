@@ -82,16 +82,19 @@ def rotate_update(user_data, config_map, ssh_username=None, ssh_password=None):
     update_access_key(username, ("", ""))
 
     for plugin in modules:
-        my_plugin = importlib.import_module("project.plugins." + list(plugin.keys())[0])
-        plugin = plugin.get(list(plugin.keys())[0])
+        plugin_name = list(plugin.keys())[0]
+        my_plugin = importlib.import_module("project.plugins." + plugin_name)
+        plugin = plugin.get(plugin_name)
         for method in plugin:  # modules = dict, module = str
             key_args = method[list(method.keys())[0]]  # get key pair of method to run
             if key_args is None:
                 key_args = {}
-            if ssh_username:
-                key_args["ssh_user"] = ssh_username
-            if ssh_password:
-                key_args["ssh_password"] = ssh_password
+            # Only the ssh plugin uses the --ssh_username/--ssh_password overrides
+            if plugin_name == "ssh":
+                if ssh_username:
+                    key_args["ssh_user"] = ssh_username
+                if ssh_password:
+                    key_args["ssh_password"] = ssh_password
             method_to_call = getattr(
                 my_plugin, list(method.keys())[0]
             )  # get method name to run
@@ -201,6 +204,8 @@ def read_config_file(path):
         )
         sys.exit(1)
 
+    # Log before resolving so secrets only appear as ${NAME} references
+    logging.debug(f"Config file {str(config_map)}")
     missing = set()
     config_map = resolve_env_references(config_map, missing)
     if missing:
@@ -220,8 +225,9 @@ def load_secrets_file(path, required):
         logging.debug(f"No secrets file at {path} - using existing environment only")
         return
     logging.debug(f"Loading secrets from {path}")
-    # Variables already set in the environment take precedence over the file
-    load_dotenv(path, override=False)
+    # Variables already set in the environment take precedence over the file;
+    # interpolate=False keeps any $ in secret values literal
+    load_dotenv(path, override=False, interpolate=False)
 
 
 def resolve_env_references(node, missing):
@@ -379,7 +385,6 @@ def main():
         if not args.ssh_password:
             ssh_password = input(f"Password for {args.ssh_username}: ")
 
-    logging.debug(f"Config file {str(config_map)}")
     all_users = config_map["Users"]
 
     if usernames != "all":
