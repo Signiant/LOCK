@@ -36,6 +36,16 @@ $ python3 -m main.py -c "/path/to/config.yaml" -a rotate -u all
 $ python3 -m main.py -c "/path/to/config.yaml" -a rotate -u nagios,skydrop-azure
 ```
 
+## Secrets
+
+Keep credentials out of `config.yaml`. Put them in a `.secrets` file next to it (gitignored, see `.secrets.example`) and reference them from the config as `${NAME}`:
+
+```yaml
+api_key: '${PINGDOM_API_KEY}'
+```
+
+LOCK loads `.secrets` from the config file's directory, or from the path given with `-s`/`--secrets`. Variables already set in the environment take precedence over the file. LOCK exits with an error listing any referenced variables that aren't set.
+
 ## Running LOCK using Docker 🐳
 
 Pull the docker container:
@@ -49,6 +59,7 @@ Run LOCK using a configuration file:
 ```bash
 docker run \
    -v /config/config.yaml:/config.yaml \
+   -v /config/.secrets:/.secrets \
    signiant/lock \
         -c /config.yaml \ 
 ```

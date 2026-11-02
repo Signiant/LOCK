@@ -55,7 +55,7 @@ def _load_ed25519_pkcs8_v2(pem_text):
 
 def load_ssh_key(username, pkey_path, password):
     try:
-        return paramiko.PKey.from_path(pkey_path, passphrase=password)
+        return paramiko.PKey.from_path(pkey_path, password)
     except ValueError as e:
         if password is None and "extra data" in str(e).lower():
             try:

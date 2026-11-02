@@ -3,57 +3,40 @@ from project import values
 import logging
 import requests
 
+CHECKS_URL = "https://api.pingdom.com/api/3.1/checks"
+
+
+def set_checks_paused(config_map, username, paused, **key_args):
+    api_key = config_map["Global"]["pingdom"]["api_key"]
+    action, acting = ("pause", "pausing") if paused else ("unpause", "unpausing")
+    # Each check is a display name mapped to its numeric Pingdom check ID
+    checks = {
+        name: check_id for name, check_id in key_args.items() if type(check_id) is int
+    }
+
+    if values.DryRun is True:
+        logging.info(f"User {username}: Dry run of {action}_check")
+        return
+
+    for check, check_id in checks.items():
+        response = requests.put(
+            f"{CHECKS_URL}/{check_id}",
+            headers={"Authorization": f"Bearer {api_key}"},
+            json={"paused": paused},
+            timeout=30,
+        )
+        if response.status_code == 200:
+            logging.info(f"User {username}: {check} {action}d")
+        else:
+            logging.error(
+                f"User {username}: error {acting} {check} "
+                f"(HTTP {response.status_code}): {response.text}"
+            )
+
 
 def pause_check(config_map, username, **key_args):
-    pingdom_account_email = config_map["Global"]["pingdom"]["account_email"]
-    api_key = config_map["Global"]["pingdom"]["api_key"]
-    pingdom_user = config_map["Global"]["pingdom"]["username"]
-    pingdom_pswd = config_map["Global"]["pingdom"]["password"]
-    checks_to_pause = [key for key in key_args.keys() if not key.startswith("ad_")]
-    if values.DryRun is True:
-        logging.info(f"User {username}: Dry run of pause_check")
-    else:
-
-        for check in checks_to_pause:
-            check_id = str(key_args.get(check))
-            url = f"https://api.pingdom.com/api/2.1/checks/{check_id}?paused=true"
-            response = requests.put(
-                url,
-                headers={"Account-Email": pingdom_account_email, "App-Key": api_key},
-                auth=(pingdom_user, pingdom_pswd),
-            )
-            if response.status_code == 200:
-                logging.info(f"User {username}: {check} paused")
-            else:
-                logging.error(
-                    f"User {username}: error pausing {check} "
-                    f"(HTTP {response.status_code}): {response.text}"
-                )
+    set_checks_paused(config_map, username, True, **key_args)
 
 
 def unpause_check(config_map, username, **key_args):
-
-    pingdom_account_email = config_map["Global"]["pingdom"]["account_email"]
-    api_key = config_map["Global"]["pingdom"]["api_key"]
-    pingdom_user = config_map["Global"]["pingdom"]["username"]
-    pingdom_pswd = config_map["Global"]["pingdom"]["password"]
-    checks_to_unpause = [key for key in key_args.keys() if not key.startswith("ad_")]
-
-    if values.DryRun is True:
-        logging.info(f"User {username}: Dry run of unpause_check: ")
-    else:
-        for check in checks_to_unpause:
-            check_id = str(key_args.get(check))
-            url = f"https://api.pingdom.com/api/2.1/checks/{check_id}?paused=false"
-            response = requests.put(
-                url,
-                headers={"Account-Email": pingdom_account_email, "App-Key": api_key},
-                auth=(pingdom_user, pingdom_pswd),
-            )
-            if response.status_code == 200:
-                logging.info(f"User {username}: {check} unpaused")
-            else:
-                logging.error(
-                    f"User {username}: error unpausing {check} "
-                    f"(HTTP {response.status_code}): {response.text}"
-                )
+    set_checks_paused(config_map, username, False, **key_args)
