@@ -7,7 +7,7 @@
            - ssh_server_command: 
                   hostname: 'server1'
                   user: 'dev'
-                  password: 'pw'
+                  password: '${SECRET_PASSWORD}'
                   port: 22
                   commands: 
                       - "sed -i '1s/.*/aws_access_key_id = <new_key_name>/' /credentials-folder/credentials"
